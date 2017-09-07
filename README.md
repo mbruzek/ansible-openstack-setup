@@ -1,29 +1,29 @@
 # ansible-openstack-setup
 
 This repository contains a playbook to setup an bare OpenStack environment
-using the python-openstackclient package. It is meant to be run on the
-localhost and requires sudo to install the python package.
+using the python-openstackclient package. The playboook requires sudo to
+install the operating system and Python packages.
 
 # Usage
 
 1. Edit the `variables` file to suit your environment. The most important
 variable being the `openstack_rc_path` is the location of the RC file.
-2. Source the variables file:
+2. Source the `variables` file:
 ```sh
 source variables
 ```
-3. Run the ansible playbook:
+3. Run the Ansible playbook:
 ```sh
-ansible-playbook openstack_setup.yml --ask-become-pass
+ansible-playbook -v create_server_openstack.yml
 ```
-
-NOTE: The SUDO password is to install the OpenStack client. Or:  
-
+4. Install the dependencies on this new OpenStack server:
 ```sh
-ansible-playbook openstack_setup.yml --skip-tags install
+ansible-playbook -v install_server_dependencies.yml # connection information generated from create playbook.
 ```
-
-If you don't want to install the python-openstackclient.
+5. Provision and install OpenShift on OpenStack:
+```sh
+ansible-playbook -v openshift_on_openstack.yml # connection information generated from create playbook.
+```
 
 If all the variables are set correctly, this will result in a server VM started
 in your OpenStack environment, connected to a floating IP address accessible
