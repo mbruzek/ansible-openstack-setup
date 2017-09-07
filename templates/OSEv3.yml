@@ -1,0 +1,33 @@
+---
+openshift_deployment_type: origin
+#openshift_deployment_type: openshift-enterprise
+#openshift_release: v3.5
+openshift_master_default_subdomain: "apps.{{ env_id }}.{{ public_dns_domain }}"
+
+osm_default_node_selector: 'region=primary'
+
+# NOTE(shadower): the hostname check seems to always fail because the
+# host's floating IP address doesn't match the address received from
+# inside the host.
+openshift_override_hostname_check: true
+
+# For POCs or demo environments that are using smaller instances than
+# the official recommended values for RAM and DISK, uncomment the line below.
+#openshift_disable_check: disk_availability,memory_availability
+
+# NOTE(shadower): Always switch to root on the OSEv3 nodes.
+# openshift-ansible requires an explicit `become`.
+ansible_become: true
+
+openshift_disable_check: disk_availability,memory_availability,docker_storage
+
+openshift_master_identity_providers:
+- name: 'htpasswd_auth'
+  login: 'true'
+  challenge: 'true'
+  kind: 'HTPasswdPasswordIdentityProvider'
+  filename: '/etc/origin/master/htpasswd'
+
+openshift_master_htpasswd_users:
+  # password: `password`
+  demo: '$apr1$vUfm7jQS$C6Vn0GDScgOjzvk1PSHe1/'
