@@ -1,0 +1,113 @@
+---
+- name: Configure openshift-ansible-contrib to run in this OpenStack environment.
+  hosts: all
+  vars:
+    env_id: "{{ lookup('env', 'env_id') | default('demo') }}"
+    keypair_name: "{{ lookup('env', 'keypair_name') }}"
+    openstack_rc_path: "{{ lookup('env', 'openstack_rc_path') }}"
+    private_key_path: "{{ lookup('env', 'private_key_path') }}"
+    public_network_name: "{{ lookup('env', 'public_network_name') }}"
+    public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
+
+  tasks:
+    # Copy the rc file so the host can talk to OpenStack.
+    - name: Copy the OpenStack rc file to {{ ansible_user_dir }}
+      copy:
+        src: "{{ openstack_rc_path }}"
+        dest: "{{ ansible_user_dir }}/keystonerc"
+
+    # Remove all old directories and files.
+    - name: Remove any old directories or files from previous attempts
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "openshift-ansible-contrib"
+        - "openshift-ansible"
+        - "inventory"
+        - "ansible.cfg"
+
+    # Get a fresh clone of the openshift-ansible GitHub project.
+    - name: Cloning the openshift-ansible repository
+      command: "git clone https://github.com/openshift/openshift-ansible"
+
+    # Get a fresh clone of the openshift-ansible-contrib GitHub project.
+    - name: Cloning the openshift-ansible-contrib repository
+      command: "git clone https://github.com/openshift/openshift-ansible-contrib"
+
+    # Set a variable.
+    - name: Create the directory fact
+      set_fact:
+        openshift_openstack_dir: "openshift-ansible-contrib/playbooks/provisioning/openstack"
+
+    # Install the galaxy requirements.
+    - name: Run the galaxy install command
+      command: ansible-galaxy install -r {{ openshift_openstack_dir }}/galaxy-requirements.yaml -p openshift-ansible-contrib/roles
+
+    # Copy the remote sample-inventory to another remote directory.
+    - name: Coping the sample inventory directory
+      # Note: The copy module does not support recurisve copy of remote sources.
+      command: cp -r {{ openshift_openstack_dir }}/sample-inventory/ inventory
+
+    # Copy the Ansible configuration file.
+    - name: Coping the Ansible configuration file
+      copy:
+        remote_src: true
+        src: inventory/ansible.cfg
+        dest: ./ansible.cfg
+
+    # Remove the ansible.cfg file.
+    - name: Removing the Ansible configuration file
+      file:
+        path: inventory/ansible.cfg
+        state: absent
+
+    # Create a .ssh directory if one does not already exist.
+    - name: Creating the .ssh directory
+      file:
+        path: "{{ ansible_user_dir }}/.ssh"
+        state: directory
+        mode: 0700
+
+    # Copy the private key so this server can access the Openshift servers.
+    - name: Copying the private key to the system
+      copy:
+        src: "{{ private_key_path }}"
+        dest: "{{ ansible_user_dir }}/.ssh/openshift"
+        mode: 0600
+
+    # Get the public DNS server from the openstack command.
+    - name: Get the public DNS servers
+      shell: "source ~/keystonerc; openstack subnet show {{ public_subnet_name }} --format value -c dns_nameservers"
+      register: dns_servers
+
+    # Format the output from the command to a csv list.
+    - name: Creating a comma separated list from the newline output
+      set_fact:
+        public_dns_nameservers: "{{ dns_servers.stdout.split('\n') | join(',') }}"
+
+    # Render the all.yml template, replacing variables with current values.
+    - name: Rendering the all.yml template
+      template:
+        src: templates/all.yml.j2
+        dest: inventory/group_vars/all.yml
+
+    # Copy the OSEv3.yml file, replacing the existing OSEv3.yml file.
+    - name: Copying the OSEv3.yml template
+      copy:
+        src: templates/OSEv3.yml
+        dest: inventory/group_vars/OSEv3.yml
+
+    # Run the Ansible playbook that installs OpenStack.
+    - name: Running the OpenStack install
+      shell: source ~/keystonerc; ansible-playbook -i inventory {{ openshift_openstack_dir }}/provision.yaml 2>&1 | tee openstack_provision_log.txt
+      args:
+        # Use bash to get the posix style redirects.
+        executable: /bin/bash
+
+    # Run the Ansible playbook that installs OpenShift.
+    - name: Running the OpenShift install
+      shell: source ~/keystonerc; ansible-playbook -i inventory openshift-ansible/playbooks/byo/config.yml 2>&1 | tee openshift_log.txt
+      args:
+        # Use bash to get the posix style redirects.
+        executable: /bin/bash
