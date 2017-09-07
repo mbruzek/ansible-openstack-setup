@@ -1,0 +1,68 @@
+---
+- name: Install the requirements to run openshift-ansible-contrib installs
+  hosts: all
+  # Can not gather facts from hosts without python installed.
+  gather_facts: false
+  vars:
+    host_type: "{{ lookup('env', 'host_type') | default('fedora') }}"
+    openstack_rc_path: "{{ lookup('env', 'openstack_rc_path') }}"
+    packages:
+      common:
+        - curl
+        - gcc
+        - git
+      fedora:
+        - libselinux-python
+        - python2-devel
+        - redhat-rpm-config
+      python:
+        - ansible
+        - pip
+        - dnspython
+        - jinja2
+        - jmespath
+        - python-openstackclient==3.11.0
+        - python-heatclient
+        - shade
+
+  tasks:
+    # Ansible can not run if python is not already installed on the host.
+    - name: Bootstrap Python on this host
+      become: true
+      raw: yum -y install python
+      tags:
+        - bootstrap
+        - install
+
+    # Install the common operating system packages on the host.
+    - name: Install the common operating system software packages
+      become: true
+      package:
+        name: "{{ item }}"
+        state: latest
+      with_items: "{{ packages['common'] }}"
+      tags:
+        - os_common
+        - install
+
+    # Install operating system specific packages on the host.
+    - name: Install operating system specific software packages
+      become: true
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ packages[host_type] }}"
+      tags:
+        - os_specific
+        - install
+
+    # Install the Python packages using pip.
+    - name: Install the Python packages
+      become: true
+      pip:
+        name: "{{ item }}"
+        state: latest
+      with_items: "{{ packages['python'] }}"
+      tags:
+        - python
+        - install
