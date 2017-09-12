@@ -4,8 +4,8 @@
   vars:
     keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1') }}"
     network_name: "{{ lookup('env', 'network_name') | default('network1') }}"
+    openstack_location: ""
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
-    openstack: source {{ openstack_rc }}; virtualenv/bin/openstack
     private_key_path: "{{ lookup('env', 'private_key_path') }}"
     public_key_path: "{{ lookup('env', 'public_key_path') }}"
     public_network_name: "{{ lookup('env', 'public_network_name') }}"
@@ -24,30 +24,81 @@
     subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24') }}"
 
   tasks:
-    # Ensure the python2-virtualenv package is installed on the host.
-    # - name: Install python2-virtualenv
-    #   become: true
-    #   tags:
-    #     - install
-    #   package:
-    #     name: python2-virtualenv
-    #     state: latest
+    # Check if the openstack client is already installed.
+    - name: Checking the path for openstack client
+      command: which openstack
+      register: openstack_path
+      ignore_errors: true
 
-    # Create a virtual Python environment.
-    - name: Creating a virtual Python environment to install requirements
-      command: virtualenv virtualenv
-      tags:
-        - install
+    # When the file exists use this value for openstack client location.
+    - name: Setting the openstack location to path
+      set_fact:
+        openstack_location: "{{ openstack_path.stdout }}"
+      when: openstack_path.stdout != ""
 
-    # Need the OpenStack client to set up server that will install everything.
-    - name: Installing the Python packages in the virtual environment
-      # The version 3.12.0 has some errors when running these commands.
-      shell: "virtualenv/bin/pip install {{ item }}"
-      with_items:
-        - python-openstackclient==3.11.0
-        - python-heatclient
-      tags:
-        - install
+    # When openstack is not found in path, this block installs openstack client.
+    - name: Installing the prerequisites for the openstack client
+      block:
+        # Install the common operating system packages.
+        - name: Install common packages
+          package:
+            name: "{{ item }}"
+            state: latest
+          with_items:
+            - gcc
+            - libselinux-python
+            - redhat-rpm-config
+        # Ensure the Fedora packages are installed.
+        - name: Installing the Fedora packages
+          package:
+            name: "{{ item }}"
+            state: latest
+          when: ansible_distribution == "Fedora"
+          with_items:
+            - python2-devel
+            - python2-virtualenv
+          become: true
+        # Ensure the CentOS or RHEL packages are installed
+        - name: Installing the CentOS or RHEL packages
+          package:
+            name: "{{ item }}"
+            state: latest
+          when: ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux"
+          with_items:
+            - python-devel
+            - python-virtualenv
+          become: true
+
+        # Create a virtual Python environment.
+        - name: Creating a virtual Python environment to install requirements
+          command: virtualenv virtualenv
+
+        # Need the OpenStack client to create a server that will install everything.
+        - name: Installing the Python packages in the virtual environment
+          # The version 3.12.0 has some errors when running these commands.
+          shell: "virtualenv/bin/pip install -U {{ item }}"
+          with_items:
+            - pip
+            - python-openstackclient==3.11.0
+            - python-heatclient
+
+        # Check the virtualenv for the openstack client
+        - name: Checking the virtualenv for the openstack client
+          stat:
+            path: "virtualenv/bin/openstack"
+          register: openstack_venv
+          when: openstack_location == ""
+
+        # When the file exists set the openstack location.
+        - name: Setting the openstack client location to the virtualenv
+          set_fact:
+            openstack_location: "{{ openstack_venv.path }}"
+          when: openstack_venv defined and openstack_venv.stat.exists and openstack_venv.stat.executable
+      when: openstack_path.stdout == ""
+
+    - name: Setting openstack location
+      set_fact:
+        openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack') }}"
 
     # Create a router so the private network can connect to the Internet.
     - name: Creating the {{ router_name }} router
