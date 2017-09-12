@@ -4,17 +4,19 @@
   # Can not gather facts from hosts without python installed.
   gather_facts: false
   vars:
-    host_type: "{{ lookup('env', 'host_type') | default('fedora') }}"
-    openstack_rc_path: "{{ lookup('env', 'openstack_rc_path') }}"
     packages:
       common:
         - curl
         - gcc
         - git
-      fedora:
         - libselinux-python
-        - python2-devel
         - redhat-rpm-config
+      Fedora:
+        - python2-devel
+      CentOS:
+        - python-devel
+      "Red Hat Enterprise Linux":
+        - python-devel
       python:
         - ansible
         - pip
@@ -51,7 +53,7 @@
       package:
         name: "{{ item }}"
         state: present
-      with_items: "{{ packages[host_type] }}"
+      with_items: "{{ packages[ ansible_distribution ] }}"
       tags:
         - os_specific
         - install
