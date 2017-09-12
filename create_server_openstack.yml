@@ -13,6 +13,9 @@
     router_name: "{{ lookup('env', 'router_name') }}"
     security_group_name: "{{ lookup('env', 'security_group_name') }}"
     server_flavor: "{{ lookup('env', 'server_flavor') }}"
+      disk: 40
+      ram: 4096
+      vcpu: 2
     server_image: "{{ lookup('env', 'server_image') }}"
     server_name: "{{ lookup('env', 'server_name') }}"
     server_user: "{{ lookup('env', 'server_user') }}"
@@ -112,6 +115,10 @@
     # Add a keypair to OpenStack that allows access to the server.
     - name: Creating {{ keypair_name }} keypair to access this server
       shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }}"
+
+    # Make sure the server flavor is created.
+    - name: Creating flavor {{ server_flavor }}
+      shell: "{{ openstack }} flavor create --public --ram {{ server_flavor.ram }} --disk {{ server_flavor.disk }} --vcpus {{ server_flavor.vcpus }} {{ server_flavor }}"
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
