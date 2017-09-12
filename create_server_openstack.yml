@@ -82,7 +82,7 @@
 
     # Set the gateway on the new router to use the public network.
     - name: Assign the public network as the gateway for the new router
-      # neutron router-gateway-set {{ router_uuid.stdout }} {{ public_network_uuid.stdout }}
+      #shell: virtualenv/bin/neutron router-gateway-set {{ router_uuid.stdout }} {{ public_network_uuid.stdout }}
       shell: "{{ openstack }} router set {{ router_uuid.stdout }} --external-gateway {{ public_network_uuid.stdout }}"
 
     # Create a security group to hold all rules set in this script.
@@ -117,6 +117,11 @@
     - name: Creating a server instance {{ server_name }}
       shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid.stdout }} --format value -c id"
       register: instance_uuid
+
+      # Attempting to avoid error message: Instance network is not ready yet (HTTP 400)
+    - name: Pausing to allow time for OpenStack to create the server and ready the network
+      pause:
+        seconds: 3
 
     # Add the floating ip address to the server.
     - name: Add the floating ip address {{ floating_ip_address.stdout }} to the server instance
