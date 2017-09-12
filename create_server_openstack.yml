@@ -12,7 +12,8 @@
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
     router_name: "{{ lookup('env', 'router_name') }}"
     security_group_name: "{{ lookup('env', 'security_group_name') }}"
-    server_flavor: "{{ lookup('env', 'server_flavor') }}"
+    server_flavor:
+      name: "{{ lookup('env', 'server_flavor') }}"
       disk: 40
       ram: 4096
       vcpu: 2
@@ -117,12 +118,12 @@
       shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }}"
 
     # Make sure the server flavor is created.
-    - name: Creating flavor {{ server_flavor }}
-      shell: "{{ openstack }} flavor create --public --ram {{ server_flavor.ram }} --disk {{ server_flavor.disk }} --vcpus {{ server_flavor.vcpus }} {{ server_flavor }}"
+    - name: Creating flavor {{ server_flavor.name }}
+      shell: "{{ openstack }} flavor create --public --ram {{ server_flavor.ram }} --disk {{ server_flavor.disk }} --vcpus {{ server_flavor.vcpus }} {{ server_flavor.name }}"
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
-      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid.stdout }} --format value -c id"
+      shell: "{{ openstack }} server create --flavor {{ server_flavor.name }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid.stdout }} --format value -c id"
       register: instance_uuid
 
       # Attempting to avoid error message: Instance network is not ready yet (HTTP 400)
