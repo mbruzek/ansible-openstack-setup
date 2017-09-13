@@ -163,14 +163,16 @@
       shell: "{{ openstack }} server create --flavor {{ server_flavor.name }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid.stdout }} --format value -c id"
       register: instance_uuid
 
-      # Attempting to avoid error message: Instance network is not ready yet (HTTP 400)
-    - name: Pausing to allow time for OpenStack to create the server and ready the network
-      pause:
-        seconds: 3
-
     # Add the floating ip address to the server.
     - name: Add the floating ip address {{ floating_ip_address.stdout }} to the server instance
+      # This command can fail with: Instance network is not ready yet (HTTP 400)
       shell: "{{ openstack }} server add floating ip {{ server_name }} {{ floating_ip_address.stdout }}"
+      register: add_result
+      until: add_result.rc == 0
+      # Retry 5 times until success.
+      retries: 5
+      delay: 3
+      ignore_errors: yes
 
     # Use the wait_for module to wait until ssh access can be established.
     - name: Wait for the server {{ server_name }} to start
