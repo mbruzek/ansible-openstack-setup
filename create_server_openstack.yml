@@ -34,6 +34,11 @@
       - { name: master_etcd, vcpu: 64, memory: 245760, disk: 512 }
       - { name: node_small, vcpu: 1, memory: 2048, disk: 32 }
       - { name: node_average, vcpu: 4, memory: 16384, disk: 64 }
+    delete_images: false
+    qcow2_images:
+      - name: rhel7.4
+        checksum: sha256:b9fd65e22e8d3eb82eecf78b36471109fa42ee46fc12fd2ba2fa02e663fd21ef
+        url: http://download-node-02.eng.bos.redhat.com/released/RHEL-7/7.4/Server/x86_64/images/rhel-guest-image-7.4-191.x86_64.qcow2
 
   tasks:
 
@@ -168,18 +173,35 @@
 
     # Make sure the server flavor is created.
     - name: Creating the flavors
-      shell: "{{ openstack }} flavor create --public --ram {{ item.memory }} --disk {{ item.disk }} --vcpus {{ item.vcpu }} {{ item.name }}"
+      shell: "{{ openstack }} flavor create --ram {{ item.memory }} --disk {{ item.disk }} --vcpus {{ item.vcpu }} {{ item.name }}"
       with_items: "{{ standard_flavors }} + {{ openshift_flavors }}"
+      # Some openstack environments do not allow you to create public flavors.
+      ignore_errors: true
 
-    # Call another playbook that downloads the OpenStack images.
-    - name: Creating the images
-      include: download_bootstrap_images.yml
-      vars:
-        openstack: "{{ openstack }}"
+    # Download the images that match the checksum.
+    - name: Downloading the qcow2 images
+      get_url:
+        checksum: "{{ item.checksum }}"
+        dest: "{{ playbook_dir }}/{{ item.name }}"
+        url: "{{ item.url }}"
+      with_items: "{{ qcow2_images }}"
+
+    # Upload the image to OpenStack
+    - name: Uploading the images to OpenStack
+      shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }}"
+      with_items: "{{ qcow2_images }}"
+
+    # Optionally delete the local downloaded images.
+    - name: Deleting the downloaded qcow2 images
+      file:
+        path: "{{ playbook_dir }}/{{ item.name }}"
+        state: absent
+      with_items: "{{ qcow2_images }}"
+      when: delete_images == true
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
-      shell: "{{ openstack }} server create --flavor {{ server_flavor.name }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid.stdout }} --format value -c id"
+      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid.stdout }} --format value -c id"
       register: instance_uuid
 
     # Add the floating ip address to the server.
