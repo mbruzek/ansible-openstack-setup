@@ -1,6 +1,6 @@
 ---
 - name: Copy the images to glance
-  hosts: all
+  hosts: localhost
   vars:
     atomic_image_directory: image_builder/qcow_images/atomic
     delete_qcow2_images: false
@@ -46,7 +46,7 @@
         # mtime = Time of last modification.
         rhel_image: "{{ rhel_images.files|sort(attribute='mtime',reverse=true)|first }}"
 
-    # Cehck for the rhel qcow2 image of the same basename.
+    # Check for the rhel qcow2 image of the same basename.
     - name: Checking if the rhel qcow2 file already exists
       stat:
         path: "{{ (rhel_image.path|splitext)[0] }}.qcow2"
