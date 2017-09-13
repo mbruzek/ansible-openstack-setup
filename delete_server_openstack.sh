@@ -52,3 +52,11 @@ fi
 
 echo "Deleting the ${router_name} router"
 ${openstack} router delete ${router_name}
+
+read -p "Delete the images? " yesorno
+if [[ $yesorno == 'yes' || $yesorno  == 'y' ]]; then
+  image_ids=$(${openstack} image list --format value -c ID)
+  for image_id in ${image_ids}; do
+    ${openstack} image delete ${image_id}
+  done
+fi
