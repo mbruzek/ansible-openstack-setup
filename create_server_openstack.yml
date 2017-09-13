@@ -2,6 +2,8 @@
 - name: The steps to set up one server in a new OpenStack environment.
   hosts: localhost
   vars:
+    image_server: "{{ lookup('env', 'image_server') }}"
+    image_server_user: "{{ lookup('env', 'image_server_user') }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1') }}"
     network_name: "{{ lookup('env', 'network_name') | default('network1') }}"
     openstack_location: ""
