@@ -2,7 +2,7 @@
 
 # This script reverses the commands performed in create_server_openstack.yml
 
-set -eu
+set -u
 
 # Load the variables for the values to clean up.
 source variables
@@ -16,8 +16,14 @@ ${openstack} server delete ${server_name}
 echo "Deleting the ${keypair_name} keypair"
 ${openstack} keypair delete ${keypair_name}
 
-echo "Deleting ${server_flavor} flavor"
-${openstack} flavor delete ${server_flavor}
+read -p "Delete the flavors? " yesorno
+if [[ $yesorno == 'yes' || $yesorno == 'y' ]]; then
+  echo "Deleting all the flavors"
+  flavor_ids=$(${openstack} flavor list --format value -c ID)
+  for flavor_id in ${flavor_ids}; do
+    ${openstack} flavor delete ${server_flavor}
+  done
+fi
 
 floating_ips=$(${openstack} floating ip list --format value -c ID)
 echo "Deleting all floating ips"
