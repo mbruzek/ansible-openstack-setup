@@ -1,0 +1,40 @@
+---
+- name: Download a cloud image to boostrap an empty OpenStack environment
+  hosts: localhost
+  vars:
+    delete_images: false
+    qcow2_images:
+      - name: rhel7.4
+        checksum: sha256:b9fd65e22e8d3eb82eecf78b36471109fa42ee46fc12fd2ba2fa02e663fd21ef
+        url: http://download-node-02.eng.bos.redhat.com/released/RHEL-7/7.4/Server/x86_64/images/rhel-guest-image-7.4-191.x86_64.qcow2
+      - name: fedora26
+        checksum: sha256:37a621dda65b04e8b6eee207088ff7697795cb2affdac13ed77166453989557c
+        url: https://download.fedoraproject.org/pub/fedora/linux/releases/26/CloudImages/x86_64/images/Fedora-Cloud-Base-26-1.5.x86_64.qcow2
+      - name: centos7
+        checksum: sha256:97ea5a1f8468b1ae1cbded3a88dd69ad1572a2f3765e8ef54bca7ddcdcd9deee
+        url: https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1708.qcow2c
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
+    openstack: source {{ openstack_rc }}; virtualenv/bin/openstack
+  tasks:
+    - name: Downloading the qcow2 images
+      get_url:
+        checksum: "{{ item.checksum }}"
+        dest: "{{ playbook_dir }}/{{ item.name }}"
+        url: "{{ item.url }}"
+      with_items: "{{ qcow2_images }}"
+
+    - name: Converting the qcow2 to raw
+      debug:
+        msg: "Convert {{ item.name }} to raw format. Not implemented at this time."
+      with_items: "{{ qcow2_images }}"
+
+    - name: Uploading the images to OpenStack
+      shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }}"
+      with_items: "{{ qcow2_images }}"
+
+    - name: Deleting the downloaded qcow2 images
+      file:
+        path: "{{ playbook_dir }}/{{ item.name }}"
+        state: absent
+      with_items: "{{ qcow2_images }}"
+      when: delete_images == true
