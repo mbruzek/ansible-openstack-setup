@@ -20,7 +20,7 @@ for keypair_name in ${keypair_names}; do
   virtualenv/bin/openstack keypair delete ${keypair_name}
 done
 
-flavor_id=$(virtualenv/bin/openstack flavor show ${server_flavor}--format value -c id)
+flavor_id=$(virtualenv/bin/openstack flavor show ${server_flavor} --format value -c id)
 echo "Deleting flavor"
 virtualenv/bin/openstack flavor delete ${flavor_id}
 
