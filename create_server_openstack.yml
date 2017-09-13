@@ -247,9 +247,9 @@
 
     - name: Adding the floating IP address as a new host
       add_host:
-        name: {{ floating_ip_address }}
+        name: "{{ floating_ip_address }}"
         groups: [ ansible, openstack, openshift ]
-        ansible_user: {{ server_user }}
+        ansible_user: "{{ server_user }}"
 
 - name: Including the dependency playbook and runing it against the new host
   include: install_server_dependencies.yml
