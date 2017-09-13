@@ -21,7 +21,7 @@ if [[ $yesorno == 'yes' || $yesorno == 'y' ]]; then
   echo "Deleting all the flavors"
   flavor_ids=$(${openstack} flavor list --format value -c ID)
   for flavor_id in ${flavor_ids}; do
-    ${openstack} flavor delete ${server_flavor}
+    ${openstack} flavor delete ${flavor_id}
   done
 fi
 
