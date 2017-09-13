@@ -36,9 +36,9 @@
       - { name: node_average, vcpu: 4, memory: 16384, disk: 64 }
     delete_images: false
     qcow2_images:
-      - name: rhel7.4
-        checksum: sha256:b9fd65e22e8d3eb82eecf78b36471109fa42ee46fc12fd2ba2fa02e663fd21ef
-        url: http://download-node-02.eng.bos.redhat.com/released/RHEL-7/7.4/Server/x86_64/images/rhel-guest-image-7.4-191.x86_64.qcow2
+      - name: fedora26
+        checksum: sha256:37a621dda65b04e8b6eee207088ff7697795cb2affdac13ed77166453989557c
+        url: https://download.fedoraproject.org/pub/fedora/linux/releases/26/CloudImages/x86_64/images/Fedora-Cloud-Base-26-1.5.x86_64.qcow2
 
   tasks:
 
@@ -115,7 +115,7 @@
       register: private_network_uuid
 
     # Run a command to retrieve the public DNS nameservers already set up.
-    - name: Get the dns_nameservers addresses from the {{ public_subnet_name }}
+    - name: Getting the dns_nameservers addresses from the {{ public_subnet_name }}
       shell: "{{ openstack }} subnet show {{ public_subnet_name }} --format value -c dns_nameservers"
       register: dns_nameservers
 
@@ -125,7 +125,7 @@
       register: subnet_uuid
 
     # Set each DNS server on the subnet of the private network.
-    - name: Set the DNS nameservers on {{ subnet_name }}
+    - name: Setting the DNS nameservers on {{ subnet_name }}
       shell: "{{ openstack }} subnet set --dns-nameserver {{ item }} {{ subnet_name }}"
       with_items: "{{ dns_nameservers.stdout }}"
 
@@ -134,12 +134,12 @@
       shell: "{{ openstack }} router add subnet {{ router_name }} {{ subnet_uuid.stdout }}"
 
     # Run a command to retrieve the public network uuid.
-    - name: Get the public network id
+    - name: Getting the public network id
       shell: "{{ openstack }} network show {{ public_network_name }} --format value -c id"
       register: public_network_uuid
 
     # Set the gateway on the new router to use the public network.
-    - name: Assign the public network as the gateway for the new router
+    - name: Assigning the public network as the gateway for the new router
       #shell: virtualenv/bin/neutron router-gateway-set {{ router_uuid.stdout }} {{ public_network_uuid.stdout }}
       shell: "{{ openstack }} router set {{ router_uuid.stdout }} --external-gateway {{ public_network_uuid.stdout }}"
 
@@ -173,7 +173,7 @@
 
     # Make sure the server flavor is created.
     - name: Creating the flavors
-      shell: "{{ openstack }} flavor create --ram {{ item.memory }} --disk {{ item.disk }} --vcpus {{ item.vcpu }} {{ item.name }}"
+      shell: "{{ openstack }} flavor create --ram {{ item.memory }} --disk {{ item.disk }} --vcpus {{ item.vcpu }} {{ item.name }} --format value -c id"
       with_items: "{{ standard_flavors }} + {{ openshift_flavors }}"
       # Some openstack environments do not allow you to create public flavors.
       ignore_errors: true
@@ -205,7 +205,7 @@
       register: instance_uuid
 
     # Add the floating ip address to the server.
-    - name: Add the floating ip address {{ floating_ip_address.stdout }} to the server instance
+    - name: Adding the floating ip address {{ floating_ip_address.stdout }} to the server instance
       # This command can fail with: Instance network is not ready yet (HTTP 400)
       shell: "{{ openstack }} server add floating ip {{ server_name }} {{ floating_ip_address.stdout }}"
       register: add_result
@@ -216,7 +216,7 @@
       ignore_errors: yes
 
     # Use the wait_for module to wait until ssh access can be established.
-    - name: Wait for the server {{ server_name }} to start
+    - name: Waiting for the server {{ server_name }} to start
       local_action: wait_for
       args:
         host: "{{ floating_ip_address.stdout }}"
@@ -226,21 +226,30 @@
         timeout: 300
 
     # Print out the ssh connection command to the new server.
-    - name: Print the command to connect to the server instance
+    - name: Printing the command to connect to the server instance
       debug:
         msg: "ssh -i {{ private_key_path }} {{ server_user }}@{{ floating_ip_address.stdout }}"
 
     # Print out the command to set up the host with Ansible and other prereqs.
-    - name: Print the command for setting up the host to use Ansible.
+    - name: Printing the command for setting up the host to use Ansible
       debug:
         msg: "ansible-playbook install_server_dependencies.yml -v --ssh-common-args='-i {{ private_key_path }}' -u {{ server_user }} -i {{ floating_ip_address.stdout }},"
 
     # Print out the command to install the OpenStack images.
-    - name: Print out the command for copying the openstack images
+    - name: Printing the command for copying the OpenStack images
       debug:
         msg: "ansible-playbook images_to_glance.yml --ssh-common-args '-i {{ private_key_path }}' -u {{ image_server_user }} -i {{ image_server }},"
 
     # Print out the command for the OpenStack and OpenShift config and install.
-    - name: Print the command for configuring OpenShift on OpenStack
+    - name: Printing the command for configuring OpenShift on OpenStack
       debug:
         msg: "ansible-playbook openshift_on_openstack.yml -v --ssh-common-args='-i {{ private_key_path }}' -u {{ server_user }} -i {{ floating_ip_address.stdout }},"
+
+    - name: Adding the floating IP address as a new host
+      add_host:
+        name: {{ floating_ip_address }}
+        groups: [ ansible, openstack, openshift ]
+        ansible_user: {{ server_user }}
+
+- name: Including the dependency playbook and runing it against the new host
+  include: install_server_dependencies.yml
