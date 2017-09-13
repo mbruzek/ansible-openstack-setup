@@ -1,6 +1,6 @@
 ---
 - name: Install the requirements to run openshift-ansible-contrib installs
-  hosts: all
+  hosts: ansible
   # Can not gather facts from hosts without python installed.
   gather_facts: false
   vars:
