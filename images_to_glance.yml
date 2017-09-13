@@ -1,6 +1,6 @@
 ---
 - name: Copy the images to glance
-  hosts: localhost
+  hosts: all
   vars:
     atomic_image_directory: image_builder/qcow_images/atomic
     delete_qcow2_images: false
