@@ -23,11 +23,6 @@
         url: "{{ item.url }}"
       with_items: "{{ qcow2_images }}"
 
-    - name: Converting the qcow2 to raw
-      debug:
-        msg: "Convert {{ item.name }} to raw format. Not implemented at this time."
-      with_items: "{{ qcow2_images }}"
-
     - name: Uploading the images to OpenStack
       shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }}"
       with_items: "{{ qcow2_images }}"
