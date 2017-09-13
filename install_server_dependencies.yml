@@ -15,7 +15,7 @@
         - python2-devel
       CentOS:
         - python-devel
-      "Red Hat Enterprise Linux":
+      RedHat:
         - python-devel
       python:
         - ansible
