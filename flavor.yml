@@ -8,27 +8,27 @@
         ram: 65536
         disk: 128
       - name: load_balancer
-        vcpus: 4
+        vcpu: 4
         ram: 16384
         disk: 128
       - name: infra_elastic
-        vcpus: 16
+        vcpu: 16
         ram: 65536
         disk: 128
       - name: m1.medium
-        vcpus: 2
+        vcpu: 2
         ram: 4096
         disk: 40
       - name: master_etcd
-        vcpus: 64
+        vcpu: 64
         ram: 245760
         disk: 512
       - name: node_small
-        vcpus: 1
+        vcpu: 1
         ram: 2048
         disk: 32
       - name: node_average
-        vcpus: 4
+        vcpu: 4
         ram: 16384
         disk: 64
 
@@ -37,5 +37,5 @@
   tasks:
 
     - name: Creating flavors
-      shell: "{{ openstack }} flavor create --ram {{ item.ram }} --disk {{ item.disk }} --vcpus {{ item.vcpus }} --public {{ item.name }}"
+      shell: "{{ openstack }} flavor create --ram {{ item.ram }} --disk {{ item.disk }} --vcpus {{ item.vcpu }} --public {{ item.name }}"
       with_items: "{{ flavors }}"
