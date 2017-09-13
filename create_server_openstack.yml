@@ -24,21 +24,8 @@
     subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24') }}"
 
   tasks:
-    # Check if the openstack client is already installed.
-    - name: Checking the path for openstack client
-      command: which openstack
-      register: openstack_path
-      ignore_errors: true
 
-    # When the file exists use this value for openstack client location.
-    - name: Setting the openstack location to path
-      set_fact:
-        openstack_location: "{{ openstack_path.stdout }}"
-      when: openstack_path.stdout != ""
-
-    # When openstack is not found in path, this block installs openstack client.
-    - name: Installing the prerequisites for the openstack client
-      block:
+    - block:
         # Install the common operating system packages.
         - name: Install common packages
           package:
@@ -48,6 +35,7 @@
             - gcc
             - libselinux-python
             - redhat-rpm-config
+          become: true
         # Ensure the Fedora packages are installed.
         - name: Installing the Fedora packages
           package:
@@ -63,7 +51,7 @@
           package:
             name: "{{ item }}"
             state: latest
-          when: ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux"
+          when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat"
           with_items:
             - python-devel
             - python-virtualenv
@@ -87,14 +75,12 @@
           stat:
             path: "virtualenv/bin/openstack"
           register: openstack_venv
-          when: openstack_location == ""
 
         # When the file exists set the openstack location.
         - name: Setting the openstack client location to the virtualenv
           set_fact:
-            openstack_location: "{{ openstack_venv.path }}"
-          when: openstack_venv defined and openstack_venv.stat.exists and openstack_venv.stat.executable
-      when: openstack_path.stdout == ""
+            openstack_location: "{{ openstack_venv.stat.path }}"
+          when: openstack_venv.stat.exists and openstack_venv.stat.executable
 
     - name: Setting openstack location
       set_fact:
@@ -170,7 +156,7 @@
 
     # Make sure the server flavor is created.
     - name: Creating flavor {{ server_flavor.name }}
-      shell: "{{ openstack }} flavor create --public --ram {{ server_flavor.ram }} --disk {{ server_flavor.disk }} --vcpus {{ server_flavor.vcpus }} {{ server_flavor.name }}"
+      shell: "{{ openstack }} flavor create --public --ram {{ server_flavor.ram }} --disk {{ server_flavor.disk }} --vcpus {{ server_flavor.vcpu }} {{ server_flavor.name }}"
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
@@ -205,6 +191,11 @@
     - name: Print the command for setting up the host to use Ansible.
       debug:
         msg: "ansible-playbook install_server_dependencies.yml -v --ssh-common-args='-i {{ private_key_path }}' -u {{ server_user }} -i {{ floating_ip_address.stdout }},"
+
+    # Print out the command to install the OpenStack images.
+    - name: Print out the command for copying the openstack images
+      debug:
+        msg: "ansible-playbook images_to_glance.yml --ssh-common-args '-i {{ private_key_path }}' -u {{ image_server_user }} -i {{ image_server }},"
 
     # Print out the command for the OpenStack and OpenShift config and install.
     - name: Print the command for configuring OpenShift on OpenStack
