@@ -147,21 +147,21 @@
 
     # Create a security group to hold all rules set in this script.
     - name: Creating {{ security_group_name }} security group for this server
-      shell: "{{ openstack }} security group create {{ security_group_name }}"
+      shell: "{{ openstack }} security group create {{ security_group_name }} --format value -c id"
 
     # Create the security group rule that allows ping (ICMP traffic).
     - name: Creating the security group rule that allows ping
-      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_name }}"
+      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_name }} --format value -c id"
       ignore_errors: yes
 
     # Create the security group rule that allows ssh (TCP port 22).
     - name: Creating the security group rule that allows ssh
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_name }}"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_name }} --format value -c id"
       ignore_errors: yes
 
     # Create the security group rule that allows secure HTTP (TCP port 443).
     - name: Creating the security group for secure http
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_name }}"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_name }} --format value -c id"
       ignore_errors: yes
 
     # Create the floating ip address on the public network.
@@ -171,7 +171,7 @@
 
     # Add a keypair to OpenStack that allows access to the server.
     - name: Creating {{ keypair_name }} keypair to access this server
-      shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }}"
+      shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }} --format value -c fingerprint"
 
     # Make sure the server flavor is created.
     - name: Creating the flavors
@@ -190,7 +190,7 @@
 
     # Upload the image to OpenStack
     - name: Uploading the images to OpenStack
-      shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }}"
+      shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }} --format value -c id"
       with_items: "{{ qcow2_images }}"
 
     # Optionally delete the local downloaded images.
@@ -249,7 +249,7 @@
 
     - name: Adding the floating IP address as a new host
       add_host:
-        name: "{{ floating_ip_address }}"
+        name: "{{ floating_ip_address.stdout }}"
         groups: [ ansible, openstack, openshift ]
         ansible_user: "{{ server_user }}"
 
