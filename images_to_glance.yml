@@ -95,5 +95,5 @@
     # Upload the images to OpenStack (Glance).
     - name: Upload the images to OpenStack
       delegate_to: locahost
-      debug: msg="{{ openstack }} image create --disk-format qcow2 --container-format bare --file {{ local_image_directory }}/{{ (item|splitext)[0] }}.qcow2 ocp-{{ ocp_major_minor }}-{{ ('atomic' in item)|ternary('atomic','rhel')}}"
+      debug: msg="{{ openstack }} image create --disk-format qcow2 --container-format bare --file {{ local_image_directory }}/{{ (item|splitext)[0] }}.qcow2 ocp-{{ ocp_major_minor }}-{{ ('atomic' in item)|ternary('atomic','rhel')}} --format value -c id"
       with_items: "{{ files }}"
