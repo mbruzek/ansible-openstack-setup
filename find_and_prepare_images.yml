@@ -1,0 +1,92 @@
+---
+- name: Find and prepare the images to copy
+  hosts: image-server
+  vars:
+    delete_qcow2_images: false
+    files: []
+    image_directory: image_builder/qcow_images
+    ocp_major_minor: 3.7
+    target_image_directory: /tmp
+
+  tasks:
+    # Get all the all the atomic files matching the pattern.
+    - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/atomic
+      find:
+        paths: "{{ image_directory }}/atomic"
+        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw"
+        use_regex: yes
+      register: atomic_images
+
+    # Only need the latest atomic file.
+    - name: Finding the latest atomic file
+      set_fact:
+        # mtime = Time of last modification.
+        atomic_image: "{{ atomic_images.files|sort(attribute='mtime',reverse=true)|first }}"
+
+    # Check for the atomic qcow2 image of the same basename.
+    - name: Checking if the atomic qcow2 file already exists
+      stat:
+        path: "/var/www/html/{{ (atomic_image.path|splitext)[0] }}.qcow2"
+      register: atomic_qcow2
+
+    # Get all the rhel files matching the pattern.
+    - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/rhel
+      find:
+        paths: "{{ image_directory }}/rhel"
+        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw"
+        use_regex: yes
+      register: rhel_images
+
+    # Only need the latest rhel file.
+    - name: Finding the latest rhel file
+      set_fact:
+        # mtime = Time of last modification.
+        rhel_image: "{{ rhel_images.files|sort(attribute='mtime',reverse=true)|first }}"
+
+    # Check for the rhel qcow2 image of the same basename.
+    - name: Checking if the rhel qcow2 file already exists
+      stat:
+        path: "/var/www/html/{{ (rhel_image.path|splitext)[0] }}.qcow2"
+      register: rhel_qcow2
+
+    - name: Creating the files fact
+      set_fact:
+        files: "{{ [ atomic_image.path, rhel_image.path ] }}"
+
+    # Create the transfer directories on the image server.
+    - name: Creating the transfer directories on the image server
+      file:
+        path: "/var/www/html/{{ item|dirname }}"
+        state: directory
+      with_items: "{{ files }}"
+
+    # Convert the raw images to qcow2 when images do not exist
+    - name: Converting and compressing the images for transport
+      # qemu-img convert -c -O qcow2 path/image_name.raw path/image_name.qcow2
+      command: "qemu-img convert -c -O qcow2 {{ item }} /var/www/html/{{ (item|splitext)[0] }}.qcow2"
+      with_items: "{{ files }}"
+      when: atomic_qcow2.stat.exists == false or rhel_qcow2.stat.exists == false
+
+    # Create the target image directories.
+    - name: Creating the target image directories
+      file:
+        path: "{{ target_image_directory }}/{{ item|dirname }}"
+        state: directory
+      with_items: "{{ files }}"
+      delegate_to: "{{ groups['target-host'][0] }}"
+
+    # Copy the images from image server the target host.
+    - name: Copy the files from the image server to the target server
+      get_url:
+        dest: "{{ target_image_directory }}/{{ (item|splitext)[0] }}.qcow2"
+        url: "http://{{ groups['image-server'][0] }}/{{ (item|splitext)[0] }}.qcow2"
+      with_items: "{{ files }}"
+      delegate_to: "{{ groups['target-host'][0] }}"
+
+    # Optionally delete the qcow2 files on the image server.
+    - name: Deleting the qcow2 files
+      file:
+        path: "/var/www/html/{{ (item|splitext)[0] }}.qcow2"
+        state: absent
+      with_items: "{{ files }}"
+      when: delete_qcow2_images

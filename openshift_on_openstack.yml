@@ -1,27 +1,24 @@
 ---
-- name: Configure openshift-ansible-contrib to run in this OpenStack environment.
-  hosts: all
+- name: Configure openshift-ansible-contrib to run in this OpenStack environment
+  hosts: target-host
   vars:
     env_id: "{{ lookup('env', 'env_id') | default('demo') }}"
     keypair_name: "{{ lookup('env', 'keypair_name') }}"
+    ocp_major_minor: 3.7
     openstack_rc_path: "{{ lookup('env', 'openstack_rc_path') }}"
     private_key_path: "{{ lookup('env', 'private_key_path') }}"
     public_network_name: "{{ lookup('env', 'public_network_name') }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
+    target_image_directory: /tmp
 
   tasks:
-    # Copy the rc file so the host can talk to OpenStack.
-    - name: Copy the OpenStack rc file to {{ ansible_user_dir }}
-      copy:
-        src: "{{ openstack_rc_path }}"
-        dest: "{{ ansible_user_dir }}/keystonerc"
-
     # Remove all old directories and files.
     - name: Remove any old directories or files from previous attempts
       file:
         path: "{{ item }}"
         state: absent
       with_items:
+        - "keystonerc"
         - "openshift-ansible-contrib"
         - "openshift-ansible"
         - "inventory"
@@ -29,11 +26,15 @@
 
     # Get a fresh clone of the openshift-ansible GitHub project.
     - name: Cloning the openshift-ansible repository
-      command: "git clone https://github.com/openshift/openshift-ansible"
+      git:
+        repo: "https://github.com/openshift/openshift-ansible"
+        dest: "{{ ansible_user_dir }}"
 
     # Get a fresh clone of the openshift-ansible-contrib GitHub project.
     - name: Cloning the openshift-ansible-contrib repository
-      command: "git clone https://github.com/openshift/openshift-ansible-contrib"
+      git:
+        repo: "https://github.com/openshift/openshift-ansible-contrib"
+        dest: "{{ ansible_user_dir }}"
 
     # Set a variable.
     - name: Create the directory fact
@@ -45,12 +46,12 @@
       command: ansible-galaxy install -r {{ openshift_openstack_dir }}/galaxy-requirements.yaml -p openshift-ansible-contrib/roles
 
     # Copy the remote sample-inventory to another remote directory.
-    - name: Coping the sample inventory directory
+    - name: Copying the sample inventory directory
       # Note: The copy module does not support recurisve copy of remote sources.
       command: cp -r {{ openshift_openstack_dir }}/sample-inventory/ inventory
 
-    # Copy the Ansible configuration file.
-    - name: Coping the Ansible configuration file
+    # Copy the Ansible configuration file from the inventory directory.
+    - name: Copying the Ansible configuration file from inventory
       copy:
         remote_src: true
         src: inventory/ansible.cfg
@@ -73,16 +74,64 @@
     - name: Copying the private key to the system
       copy:
         src: "{{ private_key_path }}"
-        dest: "{{ ansible_user_dir }}/.ssh/openshift"
+        dest: "{{ ansible_user_dir }}/.ssh/id_rsa"
         mode: 0600
 
+    # Copy the rc file so the host can talk to OpenStack.
+    - name: Copying the OpenStack rc file to {{ ansible_user_dir }}/keystonerc
+      copy:
+        src: "{{ openstack_rc_path }}"
+        dest: "{{ ansible_user_dir }}/keystonerc"
+
+    # Get the path to the openstack client.
+    - name: Finding the path to the OpenStack client
+      command: "which openstack"
+      register: openstack_path
+
+    # Set the openstack variable correctly.
+    - name: Setting the OpenStack variables
+      set_fact:
+        source_rc: "source ~/keystonerc"
+        openstack: "source ~/keystonerc; {{ openstack_path.stdout }}"
+
+    # Find the images to upload.
+    - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ target_image_directory }}
+      find:
+        paths: "{{ target_image_directory }}"
+        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+qcow2"
+        use_regex: yes
+        recurse: true
+      register: images
+
+    # Delete any images with the same name as the one we are about to upload.
+    - name: Deleting any existing images in OpenStack
+      shell: "{{ openstack }} image delete ocp-{{ ocp_major_minor }}-{{ item }}"
+      with_items: "{{ [ 'atomic', 'rhel' ] }}"
+      ignore_errors: true
+
+    # Upload the images to OpenStack (Glance).
+    - name: Uploading the images to OpenStack
+      shell: "{{ openstack }} image create --disk-format qcow2 --container-format bare --file {{ item.path }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item.path)|ternary('atomic','rhel') }} --format value -c id"
+      with_items: "{{ images.files }}"
+      register: create_result
+      # Retry up to 3 times looking for a successful return code.
+      until: create_result.rc == 0
+      retries: 3
+      delay: 5
+      ignore_errors: yes
+
+    # Upload the images to OpenStack (Glance).
+    - name: Adding metadata about the image
+      shell: "{{ openstack }} image set --property file_name={{ item.path|basename }} --property directory={{ item.path|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item.path)|ternary('atomic','rhel') }}"
+      with_items: "{{ images.files }}"
+
     # Get the public DNS server from the openstack command.
-    - name: Get the public DNS servers
-      shell: "source ~/keystonerc; openstack subnet show {{ public_subnet_name }} --format value -c dns_nameservers"
+    - name: Getting the public DNS servers from OpenStack
+      shell: "{{ openstack }} subnet show {{ public_subnet_name }} --format value -c dns_nameservers"
       register: dns_servers
 
     # Format the output from the command to a csv list.
-    - name: Creating a comma separated list from the newline output
+    - name: Creating a comma separated list of from the DNS newline output
       set_fact:
         public_dns_nameservers: "{{ dns_servers.stdout.split('\n') | join(',') }}"
 
@@ -98,16 +147,21 @@
         src: templates/OSEv3.yml
         dest: inventory/group_vars/OSEv3.yml
 
+    # This last part take a long time and is largely out of this script's control.
+    - name: Prompting user for input
+      pause:
+        prompt: Would you like to continue installing OpenShift on OpenStack?
+
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
-      shell: source ~/keystonerc; ansible-playbook -i inventory {{ openshift_openstack_dir }}/provision.yaml 2>&1 | tee openstack_provision_log.txt
+      shell: "{{ source_rc }}; ansible-playbook -i inventory {{ openshift_openstack_dir }}/provision.yaml 2>&1 | tee openstack_provision_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
 
     # Run the Ansible playbook that installs OpenShift.
     - name: Running the OpenShift install
-      shell: source ~/keystonerc; ansible-playbook -i inventory openshift-ansible/playbooks/byo/config.yml 2>&1 | tee openshift_log.txt
+      shell: "{{ source_rc }}; ansible-playbook -i inventory openshift-ansible/playbooks/byo/config.yml 2>&1 | tee openshift_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash

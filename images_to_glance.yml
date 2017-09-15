@@ -5,6 +5,8 @@
     atomic_image_directory: image_builder/qcow_images/atomic
     delete_qcow2_images: false
     files: []
+    image_server: "{{ lookup('env', 'image_server') }}"
+    image_server_user: "{{ lookup('env', 'image_server_user') }}"
     ocp_major_minor: 3.7
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
     rhel_image_directory: image_builder/qcow_images/rhel
@@ -72,15 +74,16 @@
         path: "{{ local_image_directory }}/{{ item|dirname }}"
         state: directory
       with_items: "{{ files }}"
+      delegate_to: "{{}}"
+
+    # scp -i ~/.ssh/openshift  root@dell-r510-01.perf.lab.eng.rdu.redhat.com/image_builder/qcow_images/atomic/matt_atomic_test.qcow2 /home/fedora/matt/image_builder/qcow_images/atomic/matt_atomic_test.qcow2
+    # rsync -e "ssh  -i /home/fedora/.ssh/openshift" -v root@dell-r510-01.perf.lab.eng.rdu.redhat.com:image_builder/qcow_images/atomic/matt_atomic_test.qcow2 /home/fedora/matt/image_builder/qcow_images/atomic/matt_atomic_test.qcow2
 
     # Copy the images from the host.
-    - name: Pulling the files from the {{ image_server }}
-      synchronize:
-        mode: pull
-        src: "{{ (item|splitext)[0] }}.qcow2"
-        dest: "{{ local_image_directory }}/{{ (item|splitext)[0] }}.qcow2"
-        use_ssh_args: yes
-        partial: yes
+    - name: Copy the file from the image server to the target server
+      get_url:
+        dest: "{{ (item|splitext)[0] }}"
+        url: "http://{{ image_server }}/{{ (item|splitext)[0] }}"
       with_items: "{{ files }}"
 
     # Optionally delete the qcow2 files on the host.
@@ -93,7 +96,7 @@
 
     # Get the path to the openstack client.
     - name: Returning the path to the OpenStack client
-      delegate_to: locahost
+      delegate_to: localhost
       command: "which openstack"
       register: openstack_path
 
