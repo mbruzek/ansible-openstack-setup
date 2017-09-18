@@ -1,7 +1,7 @@
 ---
 - name: Install the requirements to run openshift-ansible-contrib installs
   hosts: target-host
-  # Can not gather facts from hosts without python installed.
+  # Can not gather facts from hosts without Python installed.
   gather_facts: false
   vars:
     packages:
@@ -32,12 +32,12 @@
     # Ansible can not run if python is not already installed on the host.
     - name: Bootstrap Python on this host
       become: true
-      raw: yum -q -y install python
+      raw: yum --quiet --assumeyes install python
       tags:
         - bootstrap
         - install
 
-    # With python (2) installed it should be safe to gather facts.
+    # With Python (2) installed it should be safe to gather facts.
     - name: Gather facts
       setup:
 
@@ -69,7 +69,7 @@
       pip:
         name: "{{ item }}"
         state: latest
-        extra_args: "-q"
+        extra_args: "--quiet"  # Pass the quit argument to reduce logging.
       with_items: "{{ packages['python'] }}"
       tags:
         - python

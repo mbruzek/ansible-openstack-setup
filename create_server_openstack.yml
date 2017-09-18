@@ -188,10 +188,17 @@
         url: "{{ item.url }}"
       with_items: "{{ qcow2_images }}"
 
+    # Check if the file exists and return the checksum.
+    - name: Checking for existance of the image in OpenStack
+      shell: "{{ openstack }} image show {{ item.name }} --format value -c checksum"
+      register: image_checksum
+      ignore_errors: true
+
     # Upload the image to OpenStack
     - name: Uploading the images to OpenStack
       shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }} --format value -c id"
       with_items: "{{ qcow2_images }}"
+      when: image_checksum.rc != 0
 
     # Optionally delete the local downloaded images.
     - name: Deleting the downloaded qcow2 images
@@ -232,21 +239,6 @@
       debug:
         msg: "ssh -i {{ private_key_path }} {{ server_user }}@{{ floating_ip_address.stdout }}"
 
-    # Print out the command to set up the host with Ansible and other prereqs.
-    - name: Printing the command for setting up the host to use Ansible
-      debug:
-        msg: "ansible-playbook install_server_dependencies.yml -v --ssh-common-args='-i {{ private_key_path }}' -u {{ server_user }} -i {{ floating_ip_address.stdout }},"
-
-    # Print out the command to install the OpenStack images.
-    - name: Printing the command for copying the OpenStack images
-      debug:
-        msg: "ansible-playbook images_to_glance.yml --ssh-common-args '-i {{ private_key_path }}' -u {{ image_server_user }} -i {{ image_server }},"
-
-    # Print out the command for the OpenStack and OpenShift config and install.
-    - name: Printing the command for configuring OpenShift on OpenStack
-      debug:
-        msg: "ansible-playbook openshift_on_openstack.yml -v --ssh-common-args='-i {{ private_key_path }}' -u {{ server_user }} -i {{ floating_ip_address.stdout }},"
-
     - name: Adding the newly generated floating IP address as the target host
       add_host:
         name: "{{ floating_ip_address.stdout }}"
@@ -258,6 +250,26 @@
         name: "{{ image_server }}"
         groups: [ 'image-server' ]
         ansible_user: "{{ image_server_user }}"
+
+    - name: Writing out the current inventory to make it easier to rerun
+      copy:
+        content: "[image-server]\n{{ image_server }} ansible_user={{ image_server_user }}\n[target-server]\n{{ floating_ip_address.stdout }} ansible_user={{ server_user }}"
+        dest: "./current-inventory"
+
+    # Print out the command to set up the host with Ansible and other prereqs.
+    - name: Printing the command for setting up the host to use Ansible
+      debug:
+        msg: "ansible-playbook install_server_dependencies.yml -v --ssh-common-args='-i {{ private_key_path }}' -i current-inventory"
+
+    # Print out the command to install the OpenStack images.
+    - name: Printing the command for copying the OpenStack images
+      debug:
+        msg: "ansible-playbook find_and_prepare_images.yml -v --ssh-common-args '-i {{ private_key_path }}' -i current-inventory"
+
+    # Print out the command for the OpenStack and OpenShift config and install.
+    - name: Printing the command for configuring OpenShift on OpenStack
+      debug:
+        msg: "ansible-playbook openshift_on_openstack.yml -v --ssh-common-args='-i {{ private_key_path }}' -i current-inventory"
 
 - name: Including the dependency playbook and runing it against the new host
   include: install_server_dependencies.yml

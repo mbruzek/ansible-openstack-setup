@@ -28,13 +28,13 @@
     - name: Cloning the openshift-ansible repository
       git:
         repo: "https://github.com/openshift/openshift-ansible"
-        dest: "{{ ansible_user_dir }}"
+        dest: "{{ ansible_user_dir }}/openshift-ansible"
 
     # Get a fresh clone of the openshift-ansible-contrib GitHub project.
     - name: Cloning the openshift-ansible-contrib repository
       git:
         repo: "https://github.com/openshift/openshift-ansible-contrib"
-        dest: "{{ ansible_user_dir }}"
+        dest: "{{ ansible_user_dir }}/openshift-ansible-contrib"
 
     # Set a variable.
     - name: Create the directory fact

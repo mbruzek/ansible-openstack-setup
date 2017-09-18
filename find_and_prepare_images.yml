@@ -60,6 +60,28 @@
         state: directory
       with_items: "{{ files }}"
 
+    # Get the disk usage numbers.
+    - name: Getting the disk usage information
+      command: "df --output=avail,pcent /var/www/html"
+      register: disk_space
+
+    # Print the disk usage information.
+    - name: Printing the disk usage information
+      debug:
+        msg: "{{ disk_space.stdout_lines[1] }}"
+
+    # Parse the disk usage output.
+    - name: Setting the disk usage facts
+      set_fact:
+        bytes_available: "{{ disk_space.stdout_lines[1].split()[0] }}"
+        percent: "{{ (disk_space.stdout_lines[1].split()[1])[:-1] }}"
+
+    # Abort if above a threshold.
+    - name: Checking disk space threshold
+      debug:
+        msg: "WARNING: The image server {{ inventory_hostname }} is over 99% full!"
+      when: "percent | int >= 99"
+
     # Convert the raw images to qcow2 when images do not exist
     - name: Converting and compressing the images for transport
       # qemu-img convert -c -O qcow2 path/image_name.raw path/image_name.qcow2

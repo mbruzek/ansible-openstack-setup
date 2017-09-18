@@ -10,6 +10,12 @@ source $openstack_rc_path
 # Path to the openstack client.
 openstack=virtualenv/bin/openstack
 
+echo "Checking for the ${env_id} stack"
+if ${openstack} stack show ${env_id}.example.com --format value -c id; then
+  echo "Deleting the ${env_id} stack"
+  ${openstack} stack delete ${env_id}.example.com
+fi
+
 echo "Deleting the ${server_name} server"
 ${openstack} server delete ${server_name}
 
