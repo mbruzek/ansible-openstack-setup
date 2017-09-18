@@ -253,7 +253,7 @@
 
     - name: Writing out the current inventory to make it easier to rerun
       copy:
-        content: "[image-server]\n{{ image_server }} ansible_user={{ image_server_user }}\n[target-server]\n{{ floating_ip_address.stdout }} ansible_user={{ server_user }}"
+        content: "[image-server]\n{{ image_server }} ansible_user={{ image_server_user }}\n[target-host]\n{{ floating_ip_address.stdout }} ansible_user={{ server_user }}"
         dest: "./current-inventory"
 
     # Print out the command to set up the host with Ansible and other prereqs.
