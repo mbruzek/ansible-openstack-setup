@@ -190,9 +190,10 @@
 
     # Check if the file exists and return the checksum.
     - name: Checking for existance of the image in OpenStack
-      shell: "{{ openstack }} image show {{ item.name }} --format value -c checksum"
+      shell: "{{ openstack }} image delete {{ item.name }}"
       register: image_checksum
       ignore_errors: true
+      with_items: "{{ qcow2_images }}"
 
     # Upload the image to OpenStack
     - name: Uploading the images to OpenStack
