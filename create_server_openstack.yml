@@ -188,8 +188,8 @@
         url: "{{ item.url }}"
       with_items: "{{ qcow2_images }}"
 
-    # Check if the file exists and return the checksum.
-    - name: Checking for existance of the image in OpenStack
+    # Delete the old images of the same name.
+    - name: Delting the old images in OpenStack
       shell: "{{ openstack }} image delete {{ item.name }}"
       register: image_checksum
       ignore_errors: true
@@ -199,7 +199,6 @@
     - name: Uploading the images to OpenStack
       shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }} --format value -c id"
       with_items: "{{ qcow2_images }}"
-      when: image_checksum.rc != 0
 
     # Optionally delete the local downloaded images.
     - name: Deleting the downloaded qcow2 images
