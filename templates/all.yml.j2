@@ -15,6 +15,11 @@ public_dns_nameservers: [{{ public_dns_nameservers }}]
 openstack_ssh_public_key: "{{ keypair_name }}"
 openstack_external_network_name: "{{ public_network_name }}"
 #openstack_private_network_name:  "openshift-ansible-{{ '{{' }} stack_name }}-net"
+## If you want to use a provider network, set its name here.
+## NOTE: the `openstack_external_network_name` and
+## `openstack_private_network_name` options will be ignored when using a
+## provider network.
+#openstack_provider_network_name: "provider"
 
 # # Used Images
 # # - set specific images for roles by uncommenting corresponding lines
@@ -56,10 +61,24 @@ openstack_default_flavor: "m1.medium"
 #docker_lb_volume_size: "5"
 docker_volume_size: "15"
 
+
+## Create a Cinder volume and use it for the OpenShift registry.
+## NOTE: the openstack credentials and hosted registry options must be set in OSEv3.yml!
+#cinder_hosted_registry_name: cinder-registry
+#cinder_hosted_registry_size_gb: 10
+
+## Set up a filesystem on the cinder volume specified in `OSEv3.yaml`.
+## You need to specify the file system and volume ID in OSEv3 via
+## `openshift_hosted_registry_storage_openstack_filesystem` and
+## `openshift_hosted_registry_storage_openstack_volumeID`.
+## WARNING: This will delete any data on the volume!
+#prepare_and_format_registry_volume: False
+
 openstack_subnet_prefix: "192.168.99"
 
-# # Red Hat subscription
-rhsm_register: False
+## Red Hat subscription defaults to false which means we will not attempt to
+## subscribe the nodes
+#rhsm_register: False
 
 # # Using Red Hat Satellite:
 #rhsm_register: True
@@ -115,12 +134,12 @@ ansible_user: openshift
 # # Use bastion node to access cluster nodes (Defaults to False).
 # # Requires a static inventory.
 #openstack_use_bastion: False
-#bastion_ingress_cidr: "\{\{openstack_subnet_prefix\}\}.0/24"
+#bastion_ingress_cidr: "{{ '{{' }}openstack_subnet_prefix}}.0/24"
 #
 # # The Nova key-pair's private SSH key to access inventory nodes
-openstack_private_ssh_key: ~/.ssh/openshift
+openstack_private_ssh_key: ~/.ssh/id_rsa
 # # The path for the SSH config to access all nodes
-#openstack_ssh_config_path: /tmp/ssh.config.openshift.ansible.{{ '{{' }} env_id }}.{{ '{{' }}public_dns_domain }}
+#openstack_ssh_config_path: /tmp/ssh.config.openshift.ansible.{{ '{{' }} env_id }}.{{ '{{' }} public_dns_domain }}
 
 # If you want to use the VM storage instead of Cinder volumes, set this to `true`.
 # NOTE: this is for testing only! Your data will be gone once the VM disappears!
