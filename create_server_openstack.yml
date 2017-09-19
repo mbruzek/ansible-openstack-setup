@@ -129,7 +129,7 @@
     # Set each DNS server on the subnet of the private network.
     - name: Setting the DNS nameservers on {{ subnet_name }}
       shell: "{{ openstack }} subnet set --dns-nameserver {{ item }} {{ subnet_name }}"
-      with_items: "{{ dns_nameservers.stdout }}"
+      with_items: "{{ dns_nameservers.stdout.split(',') }}"
 
     # The subnet is configured, add it to the router.
     - name: Adding {{ subnet_name }} subnet to the {{ router_name }} router
