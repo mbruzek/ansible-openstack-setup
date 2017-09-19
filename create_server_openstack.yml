@@ -244,12 +244,14 @@
         name: "{{ floating_ip_address.stdout }}"
         groups: [ 'target-host' ]
         ansible_user: "{{ server_user }}"
+        ansible_ssh_common_args: "-i {{ private_key_path }}"
 
     - name: Adding the image_server as a new host
       add_host:
         name: "{{ image_server }}"
         groups: [ 'image-server' ]
         ansible_user: "{{ image_server_user }}"
+        ansible_ssh_common_args: "-i {{ private_key_path }}"
 
     - name: Writing out the current inventory to make it easier to rerun
       copy:
