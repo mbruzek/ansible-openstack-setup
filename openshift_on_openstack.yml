@@ -7,6 +7,7 @@
     ocp_major_minor: 3.7
     openstack_rc_path: "{{ lookup('env', 'openstack_rc_path') }}"
     private_key_path: "{{ lookup('env', 'private_key_path') }}"
+    public_key_path: "{{ lookup('env', 'public_key_path') }}"
     public_network_name: "{{ lookup('env', 'public_network_name') }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
     target_image_directory: /tmp
@@ -70,12 +71,19 @@
         state: directory
         mode: 0700
 
-    # Copy the private key so this server can access the Openshift servers.
+    # Copy the private key so this server can access the OpenShift servers.
     - name: Copying the private key to the system
       copy:
         src: "{{ private_key_path }}"
         dest: "{{ ansible_user_dir }}/.ssh/id_rsa"
         mode: 0600
+
+    # Copy the public key so this server.
+    - name: Copying the public key to the system
+      copy:
+        src: "{{ public_key_path }}"
+        dest: "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
+        mode: 0644
 
     # Copy the rc file so the host can talk to OpenStack.
     - name: Copying the OpenStack rc file to {{ ansible_user_dir }}/keystonerc
@@ -83,12 +91,12 @@
         src: "{{ openstack_rc_path }}"
         dest: "{{ ansible_user_dir }}/keystonerc"
 
-    # Get the path to the openstack client.
+    # Get the path to the OpenStack client.
     - name: Finding the path to the OpenStack client
       command: "which openstack"
       register: openstack_path
 
-    # Set the openstack variable correctly.
+    # Set the OpenStack variable correctly.
     - name: Setting the OpenStack variables
       set_fact:
         source_rc: "source ~/keystonerc"
@@ -125,13 +133,13 @@
       shell: "{{ openstack }} image set --property file_name={{ item.path|basename }} --property directory={{ item.path|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item.path)|ternary('atomic','rhel') }}"
       with_items: "{{ images.files }}"
 
-    # Get the public DNS server from the openstack command.
+    # Get the public DNS servers from OpenStack.
     - name: Getting the public DNS servers from OpenStack
       shell: "{{ openstack }} subnet show {{ public_subnet_name }} --format value -c dns_nameservers"
       register: dns_servers
 
     # Format the output from the command to a csv list.
-    - name: Creating a comma separated list of from the DNS newline output
+    - name: Creating a comma separated list of DNS from the newline output
       set_fact:
         public_dns_nameservers: "{{ dns_servers.stdout.split('\n') | join(',') }}"
 
@@ -149,14 +157,19 @@
 
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
-      shell: "{{ source_rc }}; ansible-playbook -i inventory {{ openshift_openstack_dir }}/provision.yaml 2>&1 | tee openstack_provision_log.txt"
+      shell: "{{ source_rc }}; ansible-playbook -i inventory {{ openshift_openstack_dir }}/provision.yaml 2>&1 openstack_provision_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
 
     # Run the Ansible playbook that installs OpenShift.
     - name: Running the OpenShift install
-      shell: "{{ source_rc }}; ansible-playbook -i inventory openshift-ansible/playbooks/byo/config.yml 2>&1 | tee openshift_log.txt"
+      shell: "{{ source_rc }}; ansible-playbook -i inventory openshift-ansible/playbooks/byo/config.yml 2>&1 openshift_install_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
+
+    # Print out the log file locations.
+    - name: Printing out the log file locations
+      debug:
+        msg: "Installation complete, check the openstack_provision_log.txt and openshift_install_log.txt for errors."
