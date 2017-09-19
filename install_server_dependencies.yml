@@ -29,7 +29,7 @@
         - shade
 
   tasks:
-    # Ansible can not run if python is not already installed on the host.
+    # Ansible can not run if Python is not already installed on the host.
     - name: Bootstrap Python on this host
       become: true
       raw: yum --quiet --assumeyes install python
@@ -44,9 +44,8 @@
     # Install the common operating system packages on the host.
     - name: Install the common operating system software packages
       become: true
-      package:
-        name: "{{ item }}"
-        state: latest
+      # Using raw, because the python yum package may not be installed.
+      raw: yum --quiet --assumeyes install {{ item }}
       with_items: "{{ packages['common'] }}"
       tags:
         - os_common
@@ -55,9 +54,8 @@
     # Install operating system specific packages on the host.
     - name: Install operating system specific software packages
       become: true
-      package:
-        name: "{{ item }}"
-        state: present
+      # Using raw, because the python yum package may not be installed.
+      raw: yum --quiet --assumeyes install {{ item }}
       with_items: "{{ packages[ ansible_distribution ] }}"
       tags:
         - os_specific
