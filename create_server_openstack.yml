@@ -274,10 +274,10 @@
         msg: "ansible-playbook openshift_on_openstack.yml -v --ssh-common-args='-i {{ private_key_path }}' -i current-inventory"
 
 - name: Including the dependency playbook and runing it against the new host
-  import_playbook: install_server_dependencies.yml
+  include: install_server_dependencies.yml
 
 - name: Including the image playbook and running against the dynamic hosts
-  import_playbook: find_and_prepare_images.yml
+  include: find_and_prepare_images.yml
 
 - name: Including the OpenShift playbook and running against the target-host
-  import_playbook: openshift_on_openstack.yml
+  include: openshift_on_openstack.yml
