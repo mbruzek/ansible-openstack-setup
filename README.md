@@ -16,18 +16,12 @@ source variables
 ```sh
 ansible-playbook -v create_server_openstack.yml
 ```
-4. Install the dependencies on this new OpenStack server:
-```sh
-ansible-playbook -v install_server_dependencies.yml # connection information generated from create playbook.
-```
-5. Provision and install OpenShift on OpenStack:
-```sh
-ansible-playbook -v openshift_on_openstack.yml # connection information generated from create playbook.
-```
 
-If all the variables are set correctly, this will result in a server VM started
-in your OpenStack environment, connected to a floating IP address accessible
-via ssh using the private key.
+This playbook runs a series of commands on localhost (some require sudo so use
+`-K` if needed) to create a VM server in OpenStack. A floating IP address is
+created for this VM server and the address is added to the Ansible dynamic
+inventory. Other playbooks are run in sequence at the end of the playbook to
+automate the different parts of the install.
 
 When finished with this system you can use the shell script to undo the changes
 made to go back to an unconfigured state.
