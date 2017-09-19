@@ -147,11 +147,6 @@
         src: templates/OSEv3.yml
         dest: inventory/group_vars/OSEv3.yml
 
-    # This last part take a long time and is largely out of this script's control.
-    - name: Prompting user for input
-      pause:
-        prompt: Would you like to continue installing OpenShift on OpenStack?
-
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
       shell: "{{ source_rc }}; ansible-playbook -i inventory {{ openshift_openstack_dir }}/provision.yaml 2>&1 | tee openstack_provision_log.txt"
