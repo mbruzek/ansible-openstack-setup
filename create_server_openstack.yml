@@ -40,7 +40,8 @@
     delete_images: false
     qcow2_images:
       - name: fedora26
-        checksum: sha256:37a621dda65b04e8b6eee207088ff7697795cb2affdac13ed77166453989557c
+        md5sum: d8e3cd3512cb1cf71720e4bb33671a2a
+        sha256sum: sha256:37a621dda65b04e8b6eee207088ff7697795cb2affdac13ed77166453989557c
         url: https://download.fedoraproject.org/pub/fedora/linux/releases/26/CloudImages/x86_64/images/Fedora-Cloud-Base-26-1.5.x86_64.qcow2
 
   tasks:
@@ -194,24 +195,34 @@
       # Only set quotas when the project is defined.
       when: openstack_project != ""
 
-    # Download the images that match the checksum.
+    # Download the images if they do not match the (sha256) checksum.
     - name: Downloading the qcow2 images
       get_url:
-        checksum: "{{ item.checksum }}"
+        checksum: "{{ item.sha256sum }}"
         dest: "{{ playbook_dir }}/{{ item.name }}"
         url: "{{ item.url }}"
       with_items: "{{ qcow2_images }}"
 
-    # Delete the old images of the same name.
-    - name: Delting the old images in OpenStack
-      shell: "{{ openstack }} image delete {{ item.name }}"
-      register: image_checksum
+    # Get the checksum (md5) of the image that is already in OpenStack.
+    - name: Getting the checksum for the images in OpenStack
+      shell: "{{ openstack }} image show {{ item.name }} --format value -c checksum"
+      register: md5_checksums
+      # Do not error if the image has not been uploaded yet.
       ignore_errors: true
       with_items: "{{ qcow2_images }}"
 
-    # Upload the image to OpenStack
+    # Upload the images to OpenStack (Glance).
     - name: Uploading the images to OpenStack
-      shell: "{{ openstack }} image create {{ item.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.name }} --format value -c id"
+      shell: "{{ openstack }} image create {{ item.0.name }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item.0.name }} --format value -c id"
+      with_together:
+        - "{{ qcow2_images }}"
+        - "{{ md5_checksums.results }}"
+      # Create image when the checksum from OpenStack does not match the md5 of the local image.
+      when: item.0.md5sum != item.1.stdout
+
+    # Set the metadata so we know where the image was from.
+    - name: Adding metadata about the images
+      shell: "{{ openstack }} image set --property url={{ item.url }} --propery sha256sum={{ item.sha256sum }} {{ item.name }}"
       with_items: "{{ qcow2_images }}"
 
     # Optionally delete the local downloaded images.
