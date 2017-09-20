@@ -6,8 +6,9 @@ install the operating system and Python packages.
 
 # Usage
 
-1. Edit the `variables` file to suit your environment. The most important
-variable being the `openstack_rc_path` is the location of the RC file.
+1. Edit the `inventory` and  `variables` files to suit your environment. The
+most important variable being the `openstack_rc_path` is the location of the
+OpenStack variable file.
 2. Source the `variables` file:
 ```sh
 source variables
