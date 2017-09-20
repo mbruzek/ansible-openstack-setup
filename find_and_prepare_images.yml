@@ -10,7 +10,7 @@
     web_root: /var/www/html
 
   tasks:
-    # Get all the all the atomic files matching the pattern.
+    # Get all the atomic files matching the pattern.
     - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/atomic
       find:
         paths: "{{ image_directory }}/atomic"
@@ -18,7 +18,7 @@
         use_regex: yes
       register: atomic_images
 
-    # Only need the latest atomic file.
+    # Reverse sort by mtime and the first file is the latest atomic image.
     - name: Finding the latest atomic file
       set_fact:
         # mtime = Time of last modification.
@@ -32,17 +32,17 @@
         use_regex: yes
       register: rhel_images
 
-    # Only need the latest rhel file.
+    # Reverse sort by mtime and the first file is the latest rhel image.
     - name: Finding the latest rhel file
       set_fact:
         # mtime = Time of last modification.
         rhel_image: "{{ rhel_images.files|sort(attribute='mtime',reverse=true)|first }}"
 
-    - name: Creating the files fact
+    - name: Creating the files variable
       set_fact:
         files: "{{ [ atomic_image.path, rhel_image.path ] }}"
 
-    # Create the transfer directories on the image server.
+    # Create the transfer directories to ensure they exist.
     - name: Creating the transfer directories on the image server
       file:
         path: "{{ web_root }}/{{ item|dirname }}"
@@ -50,23 +50,23 @@
       with_items: "{{ files }}"
 
     # Get the disk usage numbers.
-    - name: Getting the disk usage information
+    - name: Getting the disk usage information from the image server
       command: "df --output=avail,pcent {{ web_root }}"
       register: disk_space
 
     # Print the disk usage information.
-    - name: Printing the disk usage information
+    - name: Printing the disk usage information of the image server
       debug:
         msg: "{{ disk_space.stdout_lines[1] }}"
 
     # Parse the disk usage output.
-    - name: Setting the disk usage facts
+    - name: Setting the disk usage variables
       set_fact:
         bytes_available: "{{ disk_space.stdout_lines[1].split()[0] }}"
         percent_used: "{{ (disk_space.stdout_lines[1].split()[1])[:-1] }}"
 
-    # Abort if above a threshold.
-    - name: Checking disk space threshold
+    # Warn if the image server is above a threshold.
+    - name: Checking the disk space threshold
       debug:
         msg: "WARNING: The image server {{ inventory_hostname }} is over 99% full!"
       when: "percent_used | int >= 99"
@@ -83,8 +83,8 @@
         paths: "{{ web_root }}/{{ image_directory }}/rhel"
       register: rhel_qcow2_images
 
-    # Sort the images by mtime.
-    - name: Sort the images by mtime
+    # Sort the images by mtime and take the first image.
+    - name: Finding the oldest atomic and rhel qcow2 images
       set_fact:
         oldest_atomic_qcow2_image: "{{ atomic_qcow2_images.files|sort(attribute='mtime')|first }}"
         oldest_rhel_qcow2_image: "{{ rhel_qcow2_images.files|sort(attribute='mtime')|first }}"
@@ -117,7 +117,7 @@
       when: atomic_qcow2.stat.exists == false or rhel_qcow2.stat.exists == false
 
     # Create the image directories on the target host.
-    - name: Creating the target image directories
+    - name: Creating the image directories on the target host
       file:
         path: "{{ target_image_directory }}/{{ item|dirname }}"
         state: directory
@@ -125,7 +125,7 @@
       delegate_to: "{{ groups['target-host'][0] }}"
 
     # Copy the images from image server to the target host.
-    - name: Copy the files from the image server to the target server
+    - name: Copying the files from the image server to the target host
       get_url:
         dest: "{{ target_image_directory }}/{{ (item|splitext)[0] }}.qcow2"
         url: "http://{{ groups['image-server'][0] }}/{{ (item|splitext)[0] }}.qcow2"
