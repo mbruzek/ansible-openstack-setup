@@ -1,6 +1,4 @@
 export env_id=
-export image_server=
-export image_server_user=
 export keypair_name=keypair
 export network_name=private_network
 export openstack_rc_path=

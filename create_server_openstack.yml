@@ -2,8 +2,6 @@
 - name: The steps to set up one server in a new OpenStack environment.
   hosts: localhost
   vars:
-    image_server: "{{ lookup('env', 'image_server') }}"
-    image_server_user: "{{ lookup('env', 'image_server_user') }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('network1', true) }}"
     openstack_location: ""
@@ -261,18 +259,6 @@
         groups: [ 'target-host' ]
         ansible_user: "{{ server_user }}"
         ansible_ssh_common_args: "-i {{ private_key_path }}"
-
-    - name: Adding the image_server as a new host
-      add_host:
-        name: "{{ image_server }}"
-        groups: [ 'image-server' ]
-        ansible_user: "{{ image_server_user }}"
-        ansible_ssh_common_args: "-i {{ private_key_path }}"
-
-    - name: Writing out the current inventory to make it easier to rerun
-      copy:
-        content: "[image-server]\n{{ image_server }} ansible_user={{ image_server_user }}\n[target-host]\n{{ floating_ip_address.stdout }} ansible_user={{ server_user }}"
-        dest: "./current-inventory"
 
     # Print out the command to set up the host with Ansible and other prereqs.
     - name: Printing the command for setting up the host to use Ansible

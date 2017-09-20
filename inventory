@@ -1,1 +1,2 @@
-
+[image-server]
+# The server that hosts the OpenStack images.
