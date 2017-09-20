@@ -2,10 +2,18 @@
 - name: Configure openshift-ansible-contrib to run in this OpenStack environment
   hosts: target-host
   vars:
-    env_id: "{{ lookup('env', 'env_id') | default('demo') }}"
+    env_id: "{{ lookup('env', 'env_id') | default('demo', true) }}"
     keypair_name: "{{ lookup('env', 'keypair_name') }}"
     ocp_major_minor: 3.7
     openstack_rc_path: "{{ lookup('env', 'openstack_rc_path') }}"
+    # This variable can be used test other people's repositories.
+    openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') | default('https://github.com/openshift/openshift-ansible', true) }}"
+    # This variable can be a branch, tag, or hash for testing pull requests.
+    openshift_ansible_version: "{{ lookup('env', 'openshift_ansible_version') | default('HEAD', true) }}"
+    # This variable can be used to test other people's repositories.
+    openshift_ansible_contrib_repo: "{{ lookup('env', 'openshift_ansible_contrib_repo') | default('https://github.com/openshift/openshift-ansible-contrib', true) }}"
+    # This variable can be a branch, tag, or hash for testing pull requests.
+    openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
     private_key_path: "{{ lookup('env', 'private_key_path') }}"
     public_key_path: "{{ lookup('env', 'public_key_path') }}"
     public_network_name: "{{ lookup('env', 'public_network_name') }}"
@@ -28,14 +36,20 @@
     # Get a fresh clone of the openshift-ansible GitHub project.
     - name: Cloning the openshift-ansible repository
       git:
-        repo: "https://github.com/openshift/openshift-ansible"
-        dest: "{{ ansible_user_dir }}/openshift-ansible"
+        dest: "{{ playbook_dir }}/openshift-ansible"
+        # Specify a different repo to test someone else's repository.
+        repo: "{{ openshift_ansible_repo }}"
+        # Specify a version for a different branch, tag, or hash to verify PRs.
+        version: "{{ openshift_ansible_version }}"
 
     # Get a fresh clone of the openshift-ansible-contrib GitHub project.
     - name: Cloning the openshift-ansible-contrib repository
       git:
-        repo: "https://github.com/openshift/openshift-ansible-contrib"
-        dest: "{{ ansible_user_dir }}/openshift-ansible-contrib"
+        dest: "{{ playbook_dir }}/openshift-ansible-contrib"
+        # Specify a different repo to test someone else's repository.
+        repo: "{{ openshift_ansible_contrib_repo }}"
+        # Specify a version for a different branch, tag, or hash to verify PRs.
+        version: "{{ openshift_ansible_contrib_version }}"
 
     # Set a variable.
     - name: Create the directory fact
@@ -128,7 +142,7 @@
       delay: 5
       ignore_errors: yes
 
-    # Upload the images to OpenStack (Glance).
+    # Add metadata to the OpenStack about the image.
     - name: Adding metadata about the image
       shell: "{{ openstack }} image set --property file_name={{ item.path|basename }} --property directory={{ item.path|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item.path)|ternary('atomic','rhel') }}"
       with_items: "{{ images.files }}"
