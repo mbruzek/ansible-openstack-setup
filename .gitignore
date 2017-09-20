@@ -1,4 +1,4 @@
 *.retry
 virtualenv
-current-inventory
+inventory
 fedora26
