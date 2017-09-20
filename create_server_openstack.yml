@@ -222,7 +222,7 @@
 
     # Set the metadata so we know where the image was from.
     - name: Adding metadata about the images
-      shell: "{{ openstack }} image set --property url={{ item.url }} --propery sha256sum={{ item.sha256sum }} {{ item.name }}"
+      shell: "{{ openstack }} image set --property image_url={{ item.url }} --property sha256sum={{ item.sha256sum }} {{ item.name }}"
       with_items: "{{ qcow2_images }}"
 
     # Optionally delete the local downloaded images.
