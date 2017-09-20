@@ -4,22 +4,25 @@
   vars:
     image_server: "{{ lookup('env', 'image_server') }}"
     image_server_user: "{{ lookup('env', 'image_server_user') }}"
-    keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1') }}"
-    network_name: "{{ lookup('env', 'network_name') | default('network1') }}"
+    keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1', true) }}"
+    network_name: "{{ lookup('env', 'network_name') | default('network1', true) }}"
     openstack_location: ""
+    openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
     private_key_path: "{{ lookup('env', 'private_key_path') }}"
     public_key_path: "{{ lookup('env', 'public_key_path') }}"
     public_network_name: "{{ lookup('env', 'public_network_name') }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
+    quotas:
+        { cores: 1444, gigabytes: 50000, instances: 550, ports: 10000, ram: 5865472, volumes: 50000 }
     router_name: "{{ lookup('env', 'router_name') }}"
     security_group_name: "{{ lookup('env', 'security_group_name') }}"
     server_flavor: "{{ lookup('env', 'server_flavor') }}"
     server_image: "{{ lookup('env', 'server_image') }}"
     server_name: "{{ lookup('env', 'server_name') }}"
     server_user: "{{ lookup('env', 'server_user') }}"
-    subnet_name: "{{ lookup('env', 'subnet_name') | default('subnet1') }}"
-    subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4. 0/24') }}"
+    subnet_name: "{{ lookup('env', 'subnet_name') | default('subnet1', true) }}"
+    subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24', true) }}"
     standard_flavors:
       - { name: m1.small, vcpu: 1, memory: 1740, disk: 40 }
       - { name: m1.medium, vcpu: 1, memory: 3840, disk: 80 }
@@ -173,12 +176,25 @@
     - name: Creating {{ keypair_name }} keypair to access this server
       shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }} --format value -c fingerprint"
 
-    # Make sure the server flavor is created.
+    # Create the flavors so the create server can specify a flavor.
     - name: Creating the flavors
       shell: "{{ openstack }} flavor create --ram {{ item.memory }} --disk {{ item.disk }} --vcpus {{ item.vcpu }} {{ item.name }} --format value -c id"
       with_items: "{{ standard_flavors }} + {{ openshift_flavors }}"
       # Some openstack environments do not allow you to create public flavors.
       ignore_errors: true
+
+    # Raise the quotas from the defaults if possible.
+    - name: Setting the quotas for {{ openstack_project }}
+      shell: "{{ openstack }} quota set --{{ item }} {{ quotas[ item ] }} {{ openstack_project }}"
+      with_items:
+        - cores
+        - gigabytes
+        - instances
+        - ports
+        - ram
+        - volumes
+      # Only set quotas when the project is defined.
+      when: openstack_project != ""
 
     # Download the images that match the checksum.
     - name: Downloading the qcow2 images
@@ -273,11 +289,11 @@
       debug:
         msg: "ansible-playbook openshift_on_openstack.yml -v --ssh-common-args='-i {{ private_key_path }}' -i current-inventory"
 
-- name: Including the dependency playbook and runing it against the new host
-  include: install_server_dependencies.yml
+# import_playbook to install the dependencies on the new host VM server.
+- include: install_server_dependencies.yml
 
-- name: Including the image playbook and running against the dynamic hosts
-  include: find_and_prepare_images.yml
+# import_playbook to run the image playbook on the image-server.
+- include: find_and_prepare_images.yml
 
-- name: Including the OpenShift playbook and running against the target-host
-  include: openshift_on_openstack.yml
+# import_playbook to run the OpenStack provision and OpenShift install from the VM server.
+- include: openshift_on_openstack.yml
