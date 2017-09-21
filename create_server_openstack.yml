@@ -103,7 +103,8 @@
             openstack_location: "{{ openstack_venv.stat.path }}"
           when: openstack_venv.stat.exists and openstack_venv.stat.executable
 
-    - name: Setting openstack location
+    # The openstack variable source the rc file and contain the path to client.
+    - name: Setting openstack variable to source the rc file and contain path to client
       set_fact:
         openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack') }}"
 

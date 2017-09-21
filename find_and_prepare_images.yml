@@ -14,7 +14,7 @@
     - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/atomic
       find:
         paths: "{{ image_directory }}/atomic"
-        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw"
+        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw$"
         use_regex: yes
       register: atomic_images
 
@@ -28,7 +28,7 @@
     - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/rhel
       find:
         paths: "{{ image_directory }}/rhel"
-        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw"
+        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw$"
         use_regex: yes
       register: rhel_images
 
@@ -38,7 +38,7 @@
         # mtime = Time of last modification.
         rhel_image: "{{ rhel_images.files|sort(attribute='mtime',reverse=true)|first }}"
 
-    - name: Creating the files variable
+    - name: Creating the files variable from the latest atomic and rhel images
       set_fact:
         files: "{{ [ atomic_image.path, rhel_image.path ] }}"
 
