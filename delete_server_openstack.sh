@@ -2,7 +2,7 @@
 
 # This script reverses the commands performed in create_server_openstack.yml
 
-set -u
+set -ux
 
 # Load the variables for the values to clean up.
 source variables
@@ -13,11 +13,14 @@ openstack=virtualenv/bin/openstack
 echo "Checking for the ${env_id} stack"
 if ${openstack} stack show ${env_id}.example.com --format value -c id; then
   echo "Deleting the ${env_id} stack"
-  ${openstack} stack delete ${env_id}.example.com --yes
+  ${openstack} stack delete ${env_id}.example.com --yes --wait
 fi
 
-echo "Deleting the ${server_name} server"
-${openstack} server delete ${server_name}
+servers=$(${openstack} server list --name ${server_name} --format value -c ID)
+for server_id in ${servers}; do
+  echo "Deleting the ${server_name} server"
+  ${openstack} server delete ${server_id}
+done
 
 echo "Deleting the ${keypair_name} keypair"
 ${openstack} keypair delete ${keypair_name}
@@ -43,27 +46,27 @@ if ${openstack} security group show ${security_group_name}; then
   ${openstack} security group delete ${security_group_name}
 fi
 
-# Check for the subnet before attempting to delete it.
-if ${openstack} subnet show ${subnet_name}; then
-  # The subnet can not be deleted until it is removed from the router.
-  echo "Remove the subnet ${subnet_name} from the router ${router_name}"
-  ${openstack} router remove subnet ${router_name} ${subnet_name} || true
-
-  echo "Deleting the subnet ${subnet_name}"
-  ${openstack} subnet delete ${subnet_name}
-fi
-
-# Check for the network before attempting to delete it.
-if ${openstack} network show ${network_name}; then
-  echo "Deleting the network ${network_name}"
-  networks=$(${openstack} network show ${network_name} --format value -c id)
-  for network_id in ${networks}; do
-    ${openstack} network delete ${network_id}
+routers=$(${openstack} router list --name ${router_name} --format value -c ID)
+subnets=$(${openstack} subnet list --name ${subnet_name} --format value -c ID)
+for router_id in ${routers}; do
+  for subnet_id in ${subnets}; do
+    echo "Removing the subnet ${subnet_name} from the router ${router_name}"
+    ${openstack} router remove subnet ${router_id} ${subnet_id}
   done
-fi
+  ${openstack} subnet delete ${subnet_id}
+done
 
-echo "Deleting the ${router_name} router"
-${openstack} router delete ${router_name}
+networks=$(${openstack} network list --name ${network_name} --format value -c ID)
+for network_id in ${networks}; do
+  echo "Deleting the network ${network_name}"
+  ${openstack} network delete ${network_id}
+done
+
+routers=$(${openstack} router list --name ${router_name} --format value -c ID)
+for router_id in ${routers}; do
+  echo "Deleting the ${router_name} router"
+  ${openstack} router delete ${router_id}
+done
 
 read -p "Delete the images? " yesorno
 if [[ $yesorno == 'yes' || $yesorno  == 'y' ]]; then
