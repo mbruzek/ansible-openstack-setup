@@ -7,7 +7,8 @@ install the operating system and Python packages.
 # Usage
 
 1. Edit the `inventory` and  `variables` files to suit your environment. The
-most important variable being the `openstack_rc_path` is the location of the
+`inventory` needs a server to copy the official images from. The `variable`
+file should contain path from the localhost to keys and the location of the
 OpenStack variable file.
 2. Source the `variables` file:
 ```sh
@@ -15,7 +16,7 @@ source variables
 ```
 3. Run the Ansible playbook:
 ```sh
-ansible-playbook -v create_server_openstack.yml
+ansible-playbook -vv create_server_openstack.yml
 ```
 
 This playbook runs a series of commands on localhost (some require sudo so use

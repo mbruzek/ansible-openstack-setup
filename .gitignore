@@ -1,4 +1,6 @@
 *.retry
 virtualenv
 inventory
-fedora26
+fedora-26
+centos-7
+rhel-7.4
