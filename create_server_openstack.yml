@@ -49,17 +49,17 @@
       - { name: node_small, vcpu: 1, memory: 2048, disk: 32 }
       - { name: node_average, vcpu: 4, memory: 16384, disk: 64 }
     images:
-      - name: fedora-26
+      fedora-26:
         md5sum: d8e3cd3512cb1cf71720e4bb33671a2a
         sha256sum: sha256:37a621dda65b04e8b6eee207088ff7697795cb2affdac13ed77166453989557c
         url: https://download.fedoraproject.org/pub/fedora/linux/releases/26/CloudImages/x86_64/images/Fedora-Cloud-Base-26-1.5.x86_64.qcow2
         user: fedora
-      - name: centos-7
+      centos-7:
         md5sum: 14cb34a3dcb30364631c689547dcd1bd
         sha256sum: sha256:97ea5a1f8468b1ae1cbded3a88dd69ad1572a2f3765e8ef54bca7ddcdcd9deee
         url: https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1708.qcow2c
         user: centos
-      - name: rhel-7.4
+      rhel-7.4:
         md5sum: feb1a599deb59ade97dc0935fbb24c8c
         sha256sum: sha256:b9fd65e22e8d3eb82eecf78b36471109fa42ee46fc12fd2ba2fa02e663fd21ef
         url: http://download-node-02.eng.bos.redhat.com/released/RHEL-7/7.4/Server/x86_64/images/rhel-guest-image-7.4-191.x86_64.qcow2
@@ -190,7 +190,7 @@
     # Create the floating ip address on the public network.
     - name: Creating a floating ip on the {{ public_network_name }}
       shell: "{{ openstack }} floating ip create {{ public_network_name }} --format value -c floating_ip_address"
-      register: addresses
+      register: address
 
     # Set the floating ip address as fact.
     - name: Setting the floating ip address variable
@@ -203,7 +203,7 @@
 
     # Create the flavors so the create server can specify a flavor.
     - name: Creating the flavors
-      shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item.['vcpu'] }} {{ item['name'] }} --format value -c id"
+      shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['name'] }} --format value -c id"
       with_items: "{{ ec2_flavors }} + {{ standard_flavors }} + {{ openshift_flavors }}"
       # Some openstack environments do not allow you to create public flavors.
       ignore_errors: true
@@ -223,7 +223,7 @@
 
     # Get the checksum (md5) of the image that is already in OpenStack.
     - name: Getting the checksum for the images in OpenStack
-      shell: "{{ openstack }} image show {{ item['name'] }} --format value -c checksum"
+      shell: "{{ openstack }} image show {{ item }} --format value -c checksum"
       register: md5_checksums
       # Do not error if the image has not been uploaded yet.
       ignore_errors: true
@@ -232,33 +232,34 @@
     # Download the image only if you need to.
     - name: Downloading the VM images
       get_url:
-        checksum: "{{ item[0]['sha256sum'] }}"
-        dest: "{{ playbook_dir }}/{{ item[0]['name'] }}"
-        url: "{{ item[0]['url'] }}"
+        checksum: "{{ images[item[0]]['sha256sum'] }}"
+        dest: "{{ playbook_dir }}/{{ item[0] }}"
+        url: "{{ images[item[0]]['url'] }}"
       with_together:
         - "{{ images }}"
         - "{{ md5_checksums['results'] }}"
       # Download the image when the checksum from OpenStack does not match the md5.
-      when: item[0]['md5sum'] != item[1]['stdout']
+      when: images[item[0]]['md5sum'] != item[1]['stdout']
 
     # Upload the images to OpenStack (Glance).
     - name: Uploading the images to OpenStack
-      shell: "{{ openstack }} image create {{ item[0]['name'] }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item[0]['name'] }} --format value -c id"
+      shell: "{{ openstack }} image create {{ item[0] }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item[0] }} --format value -c id"
       with_together:
         - "{{ images }}"
         - "{{ md5_checksums['results'] }}"
       # Create image when the checksum from OpenStack does not match the md5.
-      when: item[0]['md5sum'] != item[1]['stdout']
+      when: images[item[0]]['md5sum'] != item[1]['stdout']
 
     # Set the metadata so we know where the image was from.
     - name: Adding metadata about the images
-      shell: "{{ openstack }} image set --property image_url={{ item['url'] }} --property sha256sum={{ item['sha256sum'] }} --property user={{ item['user'] }} {{ item['name'] }}"
+      shell: "{{ openstack }} image set --property image_url={{ images[item]['url'] }} --property sha256sum={{ images[item]['sha256sum'] }} --property user={{ images[item]['user'] }} {{ item }}"
       with_items: "{{ images }}"
       ignore_errors: true
 
+    # Optionally delete the VM images.
     - name: Deleting the downloaded VM images
       file:
-        path: "{{ playbook_dir }}/{{ item['name'] }}"
+        path: "{{ playbook_dir }}/{{ item }}"
         state: absent
       with_items: "{{ images }}"
       # Do not error if the delete fails.
