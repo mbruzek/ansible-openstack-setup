@@ -15,7 +15,9 @@
       Fedora:
         - python2-devel
       CentOS:
+        - epel-release
         - python-devel
+        - python-pip
       RedHat:
         - python-devel
       python:

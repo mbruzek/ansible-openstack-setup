@@ -112,7 +112,7 @@
       command: "qemu-img convert -c -O qcow2 {{ item[0] }} {{ item[1]['stat']['path'] }}"
       with_together:
         - "{{ files }}"
-        - "{{ qcow2_files }}"
+        - "{{ qcow2_files['results'] }}"
       when: item[1]['stat']['exists'] == false
 
     # Get the sha256sum of the qcow2 files.
@@ -140,5 +140,5 @@
         url: "http://{{ groups['image-server'][0] }}/{{ (item[0]|splitext)[0] }}.qcow2"
       with_together:
         - "{{ files }}"
-        - "{{ qcow2_files }}"
+        - "{{ qcow2_files['results'] }}"
       delegate_to: "{{ groups['target-host'][0] }}"
