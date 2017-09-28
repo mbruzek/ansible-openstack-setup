@@ -38,6 +38,7 @@
       debug:
         msg: "Using {{ openshift_ansible_repo }} {{ openshift_ansible_version }}"
 
+    # TODO: Don't clone this directory!
     # Get a fresh clone of the openshift-ansible GitHub project.
     - name: Cloning the openshift-ansible repository
       git:

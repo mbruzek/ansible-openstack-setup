@@ -21,7 +21,7 @@
       RedHat:
         - python-devel
       python:
-        - ansible
+        - ansible==2.3
         - pip
         - dnspython
         - jinja2
