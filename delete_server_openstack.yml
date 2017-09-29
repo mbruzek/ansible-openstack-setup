@@ -1,6 +1,6 @@
 ---
 - name: Commands to clean up an OpenStack environment
-  hosts: localhost
+  hosts: openstack-server
   vars:
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
@@ -26,20 +26,20 @@
       private: no
 
   tasks:
-    # Check the virtualenv for the openstack client
-    - name: Checking the virtualenv for the openstack client
+    # Check the virtualenv for the OpenStack client
+    - name: Checking the virtualenv for the OpenStack client
       stat:
         path: "virtualenv/bin/openstack"
       register: openstack_venv
 
-    # When the file exists set the openstack location.
-    - name: Setting the openstack client location to the virtualenv
+    # When the file exists set the OpenStack location variable.
+    - name: Setting the OpenStack client location to the virtualenv
       set_fact:
         openstack_location: "{{ openstack_venv.stat.path }}"
       when: openstack_venv.stat.exists and openstack_venv.stat.executable
 
-    # The openstack variable source the rc file and contain the path to client.
-    - name: Setting openstack variable to source the rc file and contain the path to the client
+    # This variable includes rc file and the path to the OpenStack client.
+    - name: Setting a variable to source the rc file and contain path to the OpenStack client
       set_fact:
         openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack', true) }}"
 

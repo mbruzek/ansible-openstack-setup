@@ -111,20 +111,20 @@
             - python-openstackclient==3.11.0
             - python-heatclient
 
-        # Check the virtualenv for the openstack client
-        - name: Checking the virtualenv for the openstack client
+        # Check the virtualenv for the OpenStack client
+        - name: Checking the virtualenv for the OpenStack client
           stat:
             path: "virtualenv/bin/openstack"
           register: openstack_venv
 
-        # When the file exists set the openstack location.
-        - name: Setting the openstack client location to the virtualenv
+        # When the file exists set the OpenStack location variable.
+        - name: Setting the OpenStack client location to the virtualenv
           set_fact:
             openstack_location: "{{ openstack_venv.stat.path }}"
           when: openstack_venv.stat.exists and openstack_venv.stat.executable
 
-    # The openstack variable source the rc file and contain the path to client.
-    - name: Setting openstack variable to source the rc file and contain path to client
+    # Thid variable includes the rc file and the path to the OpenStack client.
+    - name: Setting a variable to source the rc file and contain path to the OpenStack client
       set_fact:
         openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack') }}"
 
@@ -212,8 +212,20 @@
     - name: Creating the flavors
       shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['name'] }} --format value -c id"
       with_items: "{{ ec2_flavors }} + {{ standard_flavors }} + {{ openshift_flavors }}"
-      # Some openstack environments do not allow you to create public flavors.
+      # Some OpenStack environments do not allow you to create public flavors.
       ignore_errors: true
+
+    # Get the OpenStack project name.
+    - name: Getting the OpenStack project name
+      shell: "source {{ openstack_rc }}; echo -n $OS_PROJECT_NAME"
+      register: project_name
+      when: openstack_project == ""
+
+    # Set the OpenStack project varaible.
+    - name: Setting the OpenStack project variable
+      set_fact:
+        openstack_project: project_result.stdout
+      when: project_result.stdout != ""
 
     # Raise the quotas from the defaults if possible.
     - name: Setting the quotas for {{ openstack_project }}
