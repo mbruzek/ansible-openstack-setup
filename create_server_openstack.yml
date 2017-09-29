@@ -37,7 +37,7 @@
       - { name: n1-standard-1, vcpu: 1, memory: 3750, disk: 32 }
       - { name: n1-standard-2, vcpu: 2, memory: 7500, disk: 64 }
       - { name: n1-standard-4, vcpu: 4, memory: 15000, disk: 64 }
-      - { name: n1-standard-8, vcpu: 8, memory: 30000, disk 128 }
+      - { name: n1-standard-8, vcpu: 8, memory: 30000, disk: 128 }
       - { name: n1-standard-16, vcpu: 16, memory: 60000, disk: 128 }
       - { name: n1-standard-32, vcpu: 32, memory: 120000, disk: 256 }
       - { name: n1-standard-64, vcpu: 64, memory: 240000, disk: 256 }
@@ -225,7 +225,7 @@
     - name: Setting the OpenStack project variable
       set_fact:
         openstack_project: project_result.stdout
-      when: project_result.stdout != ""
+      when: project_name.stdout != ""
 
     # Raise the quotas from the defaults if possible.
     - name: Setting the quotas for {{ openstack_project }}
