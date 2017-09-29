@@ -201,7 +201,7 @@
     - name: Copying the public key to the OpenStack server
       copy:
         src: "{{ public_key_path }}"
-        dest: "{{ keypair_name }}.pub"
+        dest: "./{{ keypair_name }}.pub"
         mode: 0644
 
     # Add a keypair to OpenStack that allows access to the server.
