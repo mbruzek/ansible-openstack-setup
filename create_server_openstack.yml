@@ -224,7 +224,7 @@
     # Set the OpenStack project varaible.
     - name: Setting the OpenStack project variable
       set_fact:
-        openstack_project: project_result.stdout
+        openstack_project: project_name.stdout
       when: project_name.stdout != ""
 
     # Raise the quotas from the defaults if possible.
