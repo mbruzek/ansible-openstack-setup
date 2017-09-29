@@ -1,6 +1,6 @@
 ---
 - name: The steps to set up one server in a new OpenStack environment.
-  hosts: localhost
+  hosts: openstack-server
   vars:
     delete_images: true
     ec2_flavors:
@@ -14,23 +14,23 @@
       - { name: m4.2xlarge, vcpu: 8, memory: 32768, disk: 200 }
       - { name: m4.4xlarge, vcpu: 16, memory: 65536, disk: 300 }
       - { name: m4.10xlarge, vcpu: 40, memory: 163840, disk: 500 }
-    keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1', true) }}"
-    network_name: "{{ lookup('env', 'network_name') | default('network1', true) }}"
+    keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
+    network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
     openstack_location: ""
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
-    private_key_path: "{{ lookup('env', 'private_key_path') }}"
-    public_key_path: "{{ lookup('env', 'public_key_path') }}"
-    public_network_name: "{{ lookup('env', 'public_network_name') }}"
-    public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
+    private_key_path: "{{ lookup('env', 'private_key_path') | default(ansible_private_key_file, true) }}"
+    public_key_path: "{{ lookup('env', 'public_key_path') | default(ansible_public_key_file, true) }}"
+    public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
+    public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     quotas:
         { cores: 1444, gigabytes: 50000, instances: 550, ports: 10000, ram: 5865472, volumes: 50000 }
-    router_name: "{{ lookup('env', 'router_name') }}"
-    security_group_name: "{{ lookup('env', 'security_group_name') }}"
-    server_flavor: "{{ lookup('env', 'server_flavor') }}"
-    server_image: "{{ lookup('env', 'server_image') }}"
-    server_name: "{{ lookup('env', 'server_name') }}"
-    subnet_name: "{{ lookup('env', 'subnet_name') | default('subnet1', true) }}"
+    router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
+    security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
+    server_flavor: "{{ lookup('env', 'server_flavor') | default('m1.medium', true) }}"
+    server_image: "{{ lookup('env', 'server_image') | default('fedora-26', true) }}"
+    server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
+    subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
     subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24', true) }}"
     standard_flavors:
       # https://cloud.google.com/compute/docs/machine-types
@@ -137,7 +137,7 @@
     # Create a private network for the OpenStack servers to use.
     - name: Creating the {{ network_name }} network
       shell: "{{ openstack }} network create {{ network_name }} --format value -c id"
-      register: private_network_uuid
+      register: ci_network_uuid
 
     # Run a command to retrieve the public DNS nameservers already set up.
     - name: Getting the dns_nameservers addresses from the {{ public_subnet_name }}
@@ -268,7 +268,7 @@
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
-      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid['stdout'] }} --format value -c id"
       register: instance_uuid
 
     # Add the floating ip address to the server.

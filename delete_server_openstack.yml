@@ -2,17 +2,17 @@
 - name: Commands to clean up an OpenStack environment
   hosts: localhost
   vars:
-    keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1', true) }}"
-    network_name: "{{ lookup('env', 'network_name') | default('network1', true) }}"
+    keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
+    network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
     openstack_location: ""
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
-    public_network_name: "{{ lookup('env', 'public_network_name') }}"
-    public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
-    router_name: "{{ lookup('env', 'router_name') }}"
-    security_group_name: "{{ lookup('env', 'security_group_name') }}"
-    server_name: "{{ lookup('env', 'server_name') }}"
-    subnet_name: "{{ lookup('env', 'subnet_name') | default('subnet1', true) }}"
+    public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
+    public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
+    router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
+    security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
+    server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
+    subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
     subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24', true) }}"
 
   vars_prompt:
