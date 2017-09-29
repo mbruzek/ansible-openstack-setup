@@ -6,7 +6,7 @@
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
     openstack_location: ""
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
