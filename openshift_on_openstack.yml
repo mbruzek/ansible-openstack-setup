@@ -33,7 +33,7 @@
     - name: Creating a symbolic link to the openshift-ansible directory
       file:
         src: /usr/share/ansible/openshift-ansible
-        path: {{ ansible_user_dir }}/openshift-ansible
+        path: "{{ ansible_user_dir }}/openshift-ansible"
         state: link
 
     # Print the values that will be used for openshift-ansible.
