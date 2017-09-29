@@ -303,8 +303,7 @@
 
     # Use the wait_for module to wait until ssh access can be established.
     - name: Waiting for the server {{ server_name }} to start
-      local_action: wait_for
-      args:
+      wait_for:
         host: "{{ floating_ip_address }}"
         port: 22
         state: started
