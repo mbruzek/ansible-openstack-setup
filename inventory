@@ -3,6 +3,6 @@ ansible_public_key_file=
 ansible_private_key_file=
 [openstack-server]
 # The server that contains the OpenStack rc file and runs OpenStack commands.
-localhost
+localhost ansible_connection=local
 [image-server]
 # The server that hosts the Virtual Machine images.
