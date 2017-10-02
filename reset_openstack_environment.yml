@@ -26,7 +26,7 @@
 
     # The openshift installer uses a stack, try deleting that first.
     - name: Deleting the stack {{ env_id }}.example.com
-      shell: "{{ openstack }} stack delete --yes --wait"
+      shell: "{{ openstack }} stack delete --yes --wait {{ env_id }}.example.com"
       ignore_errors: true
 
 # import_playbook to delete the server VM created to run the install process.
