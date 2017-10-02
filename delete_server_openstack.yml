@@ -5,15 +5,11 @@
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
     openstack_location: ""
-    openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
-    public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
-    public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
     security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
     server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
     subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
-    subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24', true) }}"
 
   vars_prompt:
     - name: "delete_flavors"
@@ -50,12 +46,12 @@
       ignore_errors: true
 
     # Delete the servers.
-    - name: Deleting the servers
+    - name: Deleting the matching servers
       shell: "{{ openstack }} server delete {{ item }}"
       with_items: "{{ servers.stdout_lines }}"
 
     # Delete the keypair.
-    - name: Deleting the keypair
+    - name: Deleting the {{ keypair_name }} keypair
       shell: "{{ openstack }} keypair delete {{ keypair_name }}"
       ignore_errors: true
 
