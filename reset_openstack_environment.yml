@@ -1,0 +1,33 @@
+---
+- name: A playbook that cleans up the OpenStack environment
+  hosts: openstack-server
+  vars:
+    env_id: "{{ lookup('env', 'BUILD_TAG') | default('scale-ci', true) }}"
+    openstack_location: ""
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
+
+  tasks:
+    # Check the virtualenv for the OpenStack client
+    - name: Checking the virtualenv for the OpenStack client
+      stat:
+        path: "virtualenv/bin/openstack"
+      register: openstack_venv
+
+    # When the file exists set the OpenStack location variable.
+    - name: Setting the OpenStack client location to the virtualenv
+      set_fact:
+        openstack_location: "{{ openstack_venv.stat.path }}"
+      when: openstack_venv.stat.exists and openstack_venv.stat.executable
+
+    # This variable includes rc file and the path to the OpenStack client.
+    - name: Setting a variable to source the rc file and contain path to the OpenStack client
+      set_fact:
+        openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack', true) }}"
+
+    # The openshift installer uses a stack, try deleting that first.
+    - name: Deleting the stack {{ env_id }}.example.com
+      shell: "{{ openstack }} stack delete --yes --wait"
+      ignore_errors: true
+
+# import_playbook to delete the server VM created to run the install process.
+- include: delete_server_openstack.yml
