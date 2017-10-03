@@ -34,7 +34,7 @@
     # Ansible can not run if Python 2 is not already installed on the host.
     - name: Bootstrapping Python on this host
       become: true
-      delegate_to: {{ groups['openstack-server'][0] }}
+      delegate_to: "{{ groups['openstack-server'][0] }}"
       raw: yum --assumeyes install python
       tags:
         - bootstrap
@@ -42,13 +42,13 @@
 
     # With Python (2) installed it should be safe to gather facts.
     - name: Gathering facts on the target host
-      delegate_to: {{ groups['openstack-server'][0] }}
+      delegate_to: "{{ groups['openstack-server'][0] }}"
       setup:
 
     # Install the common operating system packages on the host.
     - name: Installing the common operating system software packages
       become: true
-      delegate_to: {{ groups['openstack-server'][0] }}
+      delegate_to: "{{ groups['openstack-server'][0] }}"
       # Using raw, because the python yum package may not be installed.
       raw: yum --quiet --assumeyes install {{ item }}
       with_items: "{{ packages['common'] }}"
@@ -59,7 +59,7 @@
     # Install operating system specific packages on the host.
     - name: Installing operating system specific software packages
       become: true
-      delegate_to: {{ groups['openstack-server'][0] }}
+      delegate_to: "{{ groups['openstack-server'][0] }}"
       # Using raw, because the python yum package may not be installed.
       raw: yum --quiet --assumeyes install {{ item }}
       with_items: "{{ packages[ ansible_distribution ] }}"
@@ -70,7 +70,7 @@
     # Install the Python packages using pip.
     - name: Installing the Python packages using pip
       become: true
-      delegate_to: {{ groups['openstack-server'][0] }}
+      delegate_to: "{{ groups['openstack-server'][0] }}"
       pip:
         name: "{{ item }}"
         state: latest
