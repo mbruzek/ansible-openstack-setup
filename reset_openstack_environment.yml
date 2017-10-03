@@ -24,9 +24,15 @@
       set_fact:
         openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack', true) }}"
 
+    # Get the images.
+    - name: Getting all the heat stacks
+      shell: "{{ openstack }} stack list --format value -c ID"
+      register: stacks
+
     # The openshift installer uses a stack, try deleting that first.
-    - name: Deleting the stack {{ env_id }}.example.com
-      shell: "{{ openstack }} stack delete --yes --wait {{ env_id }}.example.com"
+    - name: Deleting the all the stacks
+      shell: "{{ openstack }} stack delete --yes --wait {{ item }}"
+      with_items: "{{ stacks.stdout_lines }}"
       ignore_errors: true
 
 # import_playbook to delete the server VM created to run the install process.
