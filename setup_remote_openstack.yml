@@ -7,15 +7,15 @@
     install_directory: "{{ ansible_user_dir }}/scale-ci"
     repository: "https://github.com/mbruzek/ansible-openstack-setup.git"
     virtualenv_directory: "{{ install_directory }}/virtualenv"
-  roles:
-    - general-prerequisites
-  tasks:
+  pre_tasks:
     # Delete any existing code before proceeding.
     - name: Deleting any existing code on the openstack-server
       file:
         path: "{{ install_directory }}"
         state: absent
-
+  roles:
+    - general-prerequisites
+  tasks:
     # The openstack-server has access to the private networks.
     - name: Cloning the repository on the openstack-server
       git:
