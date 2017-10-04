@@ -1,0 +1,42 @@
+---
+# Some cloud images only have python3 installed, Ansible needs python2 to run.
+- name: Bootstrapping Python on this system
+  become: true
+  # Use the raw module to ensure that python2 in installed on this system.
+  raw: yum --assumeyes install python
+
+# With python2 installed Ansible should be able to gather facts.
+- name: Gathering facts on the target host
+  # Need the facts to get the ansible_distribution for OS identification.
+  setup:
+    filter: ansible_*
+
+# Install the common operating system packages on the host.
+- name: Installing the common operating system software packages
+  become: true
+  # Using raw, because the Python yum package may not be installed.
+  raw: yum --assumeyes install {{ item }}
+  with_items: "{{ packages['common'] }}"
+
+# Install operating system specific packages on the host.
+- name: Installing operating system specific software packages
+  become: true
+  # Using raw, because the Python yum package may not be installed.
+  raw: yum --assumeyes install {{ item }}
+  with_items: "{{ packages[ ansible_distribution ] }}"
+
+# Create a virtual Python environment.
+- name: Creating a virtual Python environment to install requirements
+  command: "virtualenv {{ ansible_user_dir }}/virtualenv"
+
+# Install the Python packages using pip.
+- name: Installing the Python packages in the virtual environment
+  shell: "{{ ansible_user_dir }}/virtualenv/bin/pip install --quiet -U {{ item }}"
+  with_items: "{{ packages['python'] }}"
+
+# Set the path location facts.
+- name: Setting the ansible_location and the openstack_location variables
+  set_fact:
+    ansible_location: "{{ ansible_user_dir }}/virtualenv/bin/ansible"
+    ansible_playbook_location: "{{ ansible_user_dir }}/virtualenv/bin/ansible-playbook"
+    openstack_location: "{{ ansible_user_dir }}/virtualenv/bin/openstack"

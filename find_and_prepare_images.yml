@@ -84,18 +84,30 @@
       register: rhel_qcow2_images
 
     # Sort the images by mtime and take the first image.
-    - name: Finding the oldest atomic and rhel qcow2 images
+    - name: Finding the oldest atomic qcow2 image
       set_fact:
         oldest_atomic_qcow2_image: "{{ atomic_qcow2_images['files']|sort(attribute='mtime')|first }}"
-        oldest_rhel_qcow2_image: "{{ rhel_qcow2_images['files']|sort(attribute='mtime')|first }}"
+      when: atomic_qcow2_images['matched'] > 0
 
-    # Optionally delete the oldest images.
-    - name: Deleting the oldest images
+    # Deleting the oldest atomic image only if there is one to delete.
+    - name: Deleting the oldest atomic image
       file:
-        path: "{{ item.path }}"
+        path: "{{ oldest_atomic_qcow2_image['path'] }}"
         state: absent
-      with_items: "[ {{ oldest_atomic_qcow2_image }}, {{ oldest_rhel_qcow2_image }} ]"
-      when: delete_qcow2_images
+      when: delete_qcow2_images and oldest_atomic_qcow2_image is defined
+
+    # Sort the images by ntime and take the first image.
+    - name: Finding the oldest rhel qcow2 image
+      set_fact:
+        oldest_rhel_qcow2_image: "{{ rhel_qcow2_images['files']|sort(attribute='mtime')|first }}"
+      when: rhel_qcow2_images['matched'] > 0
+
+    # Optionally delete the oldest rhel image if there is one to delete.
+    - name: Deleting the oldest rhel image
+      file:
+        path: "{{ oldest_rhel_qcow2_image['path'] }}"
+        state: absent
+      when: delete_qcow2_images and oldest_rhel_qcow2_image is defined
 
     # Check for the qcow2 image of the same basename.
     - name: Checking if the qcow2 files already exist

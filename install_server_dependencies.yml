@@ -1,76 +1,19 @@
 ---
-- name: Install the requirements to run openshift-ansible-contrib installs
+- name: The general prerequisites to install OpenShift using Ansible.
   hosts: target-host
   # Can not gather facts from hosts without Python installed.
   gather_facts: false
-  vars:
-    packages:
-      common:
-        - curl
-        - gcc
-        - git
-        - libselinux-python
-        - redhat-rpm-config
-        - sshpass
-      Fedora:
-        - python2-devel
-      CentOS:
-        - epel-release
-        - python-devel
-        - python-pip
-      RedHat:
-        - python-devel
-      python:
-        - ansible==2.3
-        - pip
-        - dnspython
-        - jinja2
-        - jmespath
-        - python-openstackclient==3.11.0
-        - python-heatclient
-        - shade
-
+  roles:
+    - general-prerequisites
   tasks:
-    # Ansible can not run if Python 2 is not already installed on the host.
-    - name: Bootstrapping Python on this host
-      become: true
-      raw: yum --quiet --assumeyes install python
-      tags:
-        - bootstrap
-        - install
+    # Print out the location of the ansible executable.
+    - name: Printing out the path to ansible
+      debug:
+        msg: "{{ ansible_location }}"
+      verbosity: 2
 
-    # With Python (2) installed it should be safe to gather facts.
-    - name: Gathering facts on the target host
-      setup:
-
-    # Install the common operating system packages on the host.
-    - name: Installing the common operating system software packages
-      become: true
-      # Using raw, because the python yum package may not be installed.
-      raw: yum --quiet --assumeyes install {{ item }}
-      with_items: "{{ packages['common'] }}"
-      tags:
-        - os_common
-        - install
-
-    # Install operating system specific packages on the host.
-    - name: Installing operating system specific software packages
-      become: true
-      # Using raw, because the python yum package may not be installed.
-      raw: yum --quiet --assumeyes install {{ item }}
-      with_items: "{{ packages[ ansible_distribution ] }}"
-      tags:
-        - os_specific
-        - install
-
-    # Install the Python packages using pip.
-    - name: Installing the Python packages using pip
-      become: true
-      pip:
-        name: "{{ item }}"
-        state: latest
-        extra_args: "--quiet"  # Pass the quit argument to reduce logging.
-      with_items: "{{ packages['python'] }}"
-      tags:
-        - python
-        - install
+    # Print out the location of the ansible-playbook executable.
+    - name: Printing out the path to ansible-playbook
+      debug:
+        msg: "{{ ansible_playbook_location }}"
+      verbosity: 2

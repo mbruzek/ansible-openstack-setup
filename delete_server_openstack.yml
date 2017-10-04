@@ -1,19 +1,15 @@
 ---
-- name: Commands to clean up an OpenStack environment
-  hosts: localhost
+- name: Steps to clean up an OpenStack environment
+  hosts: openstack-server
   vars:
-    keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1', true) }}"
-    network_name: "{{ lookup('env', 'network_name') | default('network1', true) }}"
-    openstack_location: ""
-    openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
-    public_network_name: "{{ lookup('env', 'public_network_name') }}"
-    public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
-    router_name: "{{ lookup('env', 'router_name') }}"
-    security_group_name: "{{ lookup('env', 'security_group_name') }}"
-    server_name: "{{ lookup('env', 'server_name') }}"
-    subnet_name: "{{ lookup('env', 'subnet_name') | default('subnet1', true) }}"
-    subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24', true) }}"
+    keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
+    network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('virtualenv/bin/openstack', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
+    router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
+    security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
+    server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
+    subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
 
   vars_prompt:
     - name: "delete_flavors"
@@ -26,22 +22,22 @@
       private: no
 
   tasks:
-    # Check the virtualenv for the openstack client
-    - name: Checking the virtualenv for the openstack client
+    # Check for the existance of the OpenStack client.
+    - name: Checking for the OpenStack client
       stat:
-        path: "virtualenv/bin/openstack"
-      register: openstack_venv
+        path: "{{ openstack_location }}"
+      register: openstack_path
 
-    # When the file exists set the openstack location.
-    - name: Setting the openstack client location to the virtualenv
+    # When the virtual enviornment does not exist try openstack from PATH.
+    - name: Reverting to the default openstack client
       set_fact:
-        openstack_location: "{{ openstack_venv.stat.path }}"
-      when: openstack_venv.stat.exists and openstack_venv.stat.executable
+        openstack_location: openstack
+      when: openstack_path.stat.exists == false
 
-    # The openstack variable source the rc file and contain the path to client.
-    - name: Setting openstack variable to source the rc file and contain the path to the client
+    # This variable includes rc file and the path to the OpenStack client.
+    - name: Setting a variable to source the rc file and contain path to the OpenStack client
       set_fact:
-        openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack', true) }}"
+        openstack: "source {{ openstack_rc }}; {{ openstack_location }}"
 
     # Get the server ids that match the name.
     - name: Getting the server IDs that match the {{ server_name }}
@@ -50,12 +46,12 @@
       ignore_errors: true
 
     # Delete the servers.
-    - name: Deleting the servers
+    - name: Deleting the matching servers
       shell: "{{ openstack }} server delete {{ item }}"
       with_items: "{{ servers.stdout_lines }}"
 
     # Delete the keypair.
-    - name: Deleting the keypair
+    - name: Deleting the {{ keypair_name }} keypair
       shell: "{{ openstack }} keypair delete {{ keypair_name }}"
       ignore_errors: true
 

@@ -1,0 +1,17 @@
+---
+- name: The steps to run the scale-ci automation
+  # Ensure the Ansible control machine can access the OpenStack network.
+  hosts: localhost
+  gather_facts: false
+
+# import_playbook to create a VM server in OpenStack.
+- include: create_server_openstack.yml
+
+# import_playbook to install the dependencies on the new VM server.
+- include: install_server_dependencies.yml
+
+# import_playbook to find the prepare the images on the image-server.
+- include: find_and_prepare_images.yml
+
+# import_playbook to provision OpenStack VMs and install OpenShift from the VM server.
+- include: openshift_on_openstack.yml

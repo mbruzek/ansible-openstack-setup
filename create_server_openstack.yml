@@ -1,6 +1,6 @@
 ---
-- name: The steps to set up one server in a new OpenStack environment.
-  hosts: localhost
+- name: Set up one virtual machine server in a new OpenStack environment
+  hosts: openstack-server
   vars:
     delete_images: true
     ec2_flavors:
@@ -14,30 +14,28 @@
       - { name: m4.2xlarge, vcpu: 8, memory: 32768, disk: 200 }
       - { name: m4.4xlarge, vcpu: 16, memory: 65536, disk: 300 }
       - { name: m4.10xlarge, vcpu: 40, memory: 163840, disk: 500 }
-    keypair_name: "{{ lookup('env', 'keypair_name') | default('keypair1', true) }}"
-    network_name: "{{ lookup('env', 'network_name') | default('network1', true) }}"
-    openstack_location: ""
+    keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
+    network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('virtualenv/bin/openstack', true) }}"
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') }}"
-    private_key_path: "{{ lookup('env', 'private_key_path') }}"
-    public_key_path: "{{ lookup('env', 'public_key_path') }}"
-    public_network_name: "{{ lookup('env', 'public_network_name') }}"
-    public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
+    public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
+    public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     quotas:
         { cores: 1444, gigabytes: 50000, instances: 550, ports: 10000, ram: 5865472, volumes: 50000 }
-    router_name: "{{ lookup('env', 'router_name') }}"
-    security_group_name: "{{ lookup('env', 'security_group_name') }}"
-    server_flavor: "{{ lookup('env', 'server_flavor') }}"
-    server_image: "{{ lookup('env', 'server_image') }}"
-    server_name: "{{ lookup('env', 'server_name') }}"
-    subnet_name: "{{ lookup('env', 'subnet_name') | default('subnet1', true) }}"
+    router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
+    security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
+    server_flavor: "{{ lookup('env', 'server_flavor') | default('m1.medium', true) }}"
+    server_image: "{{ lookup('env', 'server_image') | default('fedora-26', true) }}"
+    server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
+    subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
     subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24', true) }}"
     standard_flavors:
       # https://cloud.google.com/compute/docs/machine-types
       - { name: n1-standard-1, vcpu: 1, memory: 3750, disk: 32 }
       - { name: n1-standard-2, vcpu: 2, memory: 7500, disk: 64 }
       - { name: n1-standard-4, vcpu: 4, memory: 15000, disk: 64 }
-      - { name: n1-standard-8, vcpu: 8, memory: 30000, disk 128 }
+      - { name: n1-standard-8, vcpu: 8, memory: 30000, disk: 128 }
       - { name: n1-standard-16, vcpu: 16, memory: 60000, disk: 128 }
       - { name: n1-standard-32, vcpu: 32, memory: 120000, disk: 256 }
       - { name: n1-standard-64, vcpu: 64, memory: 240000, disk: 256 }
@@ -65,68 +63,22 @@
         url: http://download-node-02.eng.bos.redhat.com/released/RHEL-7/7.4/Server/x86_64/images/rhel-guest-image-7.4-191.x86_64.qcow2
         user: cloud-user
   tasks:
+    # Check for the existance of the OpenStack client.
+    - name: Checking for the OpenStack client
+      stat:
+        path: "{{ openstack_location }}"
+      register: openstack_path
 
-    - block:
-        # Install the common operating system packages.
-        - name: Install common packages
-          package:
-            name: "{{ item }}"
-            state: latest
-          with_items:
-            - gcc
-            - libselinux-python
-            - redhat-rpm-config
-          become: true
-        # Ensure the Fedora packages are installed.
-        - name: Installing the Fedora packages
-          package:
-            name: "{{ item }}"
-            state: latest
-          when: ansible_distribution == "Fedora"
-          with_items:
-            - python2-devel
-            - python2-virtualenv
-          become: true
-        # Ensure the CentOS or RHEL packages are installed
-        - name: Installing the CentOS or RHEL packages
-          package:
-            name: "{{ item }}"
-            state: latest
-          when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat"
-          with_items:
-            - python-devel
-            - python-virtualenv
-          become: true
+    # Fail when the openstack client path does not exist.
+    - name: Aborting because the OpenStack client does not exist
+      fail:
+        msg: "The openstack client path '{{ openstack_location }}' is invalid."
+      when: openstack_path.stat.exists == false
 
-        # Create a virtual Python environment.
-        - name: Creating a virtual Python environment to install requirements
-          command: virtualenv virtualenv
-
-        # Need the OpenStack client to create a server that will install everything.
-        - name: Installing the Python packages in the virtual environment
-          # The version 3.12.0 has some errors when running these commands.
-          shell: "virtualenv/bin/pip install -U {{ item }}"
-          with_items:
-            - pip
-            - python-openstackclient==3.11.0
-            - python-heatclient
-
-        # Check the virtualenv for the openstack client
-        - name: Checking the virtualenv for the openstack client
-          stat:
-            path: "virtualenv/bin/openstack"
-          register: openstack_venv
-
-        # When the file exists set the openstack location.
-        - name: Setting the openstack client location to the virtualenv
-          set_fact:
-            openstack_location: "{{ openstack_venv.stat.path }}"
-          when: openstack_venv.stat.exists and openstack_venv.stat.executable
-
-    # The openstack variable source the rc file and contain the path to client.
+    # The openstack variable includes the rc file and the path to the OpenStack client.
     - name: Setting openstack variable to source the rc file and contain path to client
       set_fact:
-        openstack: "source {{ openstack_rc }}; {{ openstack_location|default('openstack') }}"
+        openstack: "source {{ openstack_rc }}; {{ openstack_location }}"
 
     # Create a router so the private network can connect to the Internet.
     - name: Creating the {{ router_name }} router
@@ -137,7 +89,7 @@
     # Create a private network for the OpenStack servers to use.
     - name: Creating the {{ network_name }} network
       shell: "{{ openstack }} network create {{ network_name }} --format value -c id"
-      register: private_network_uuid
+      register: ci_network_uuid
 
     # Run a command to retrieve the public DNS nameservers already set up.
     - name: Getting the dns_nameservers addresses from the {{ public_subnet_name }}
@@ -199,14 +151,26 @@
 
     # Add a keypair to OpenStack that allows access to the server.
     - name: Creating {{ keypair_name }} keypair to access this server
-      shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }} --format value -c fingerprint"
+      shell: "{{ openstack }} keypair create --public-key {{ ansible_public_key_file }} {{ keypair_name }} --format value -c fingerprint"
 
     # Create the flavors so the create server can specify a flavor.
     - name: Creating the flavors
       shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['name'] }} --format value -c id"
       with_items: "{{ ec2_flavors }} + {{ standard_flavors }} + {{ openshift_flavors }}"
-      # Some openstack environments do not allow you to create public flavors.
+      # Some OpenStack environments do not allow you to create public flavors.
       ignore_errors: true
+
+    # Get the OpenStack project name.
+    - name: Getting the OpenStack project name
+      shell: "source {{ openstack_rc }}; echo -n $OS_PROJECT_NAME"
+      register: project_name
+      when: openstack_project == ""
+
+    # Set the OpenStack project varaible.
+    - name: Setting the OpenStack project variable
+      set_fact:
+        openstack_project: "{{ project_name.stdout }}"
+      when: project_name.stdout != ""
 
     # Raise the quotas from the defaults if possible.
     - name: Setting the quotas for {{ openstack_project }}
@@ -268,7 +232,7 @@
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
-      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ private_network_uuid['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid['stdout'] }} --format value -c id"
       register: instance_uuid
 
     # Add the floating ip address to the server.
@@ -284,8 +248,7 @@
 
     # Use the wait_for module to wait until ssh access can be established.
     - name: Waiting for the server {{ server_name }} to start
-      local_action: wait_for
-      args:
+      wait_for:
         host: "{{ floating_ip_address }}"
         port: 22
         state: started
@@ -295,7 +258,7 @@
     # Print out the ssh connection command to the new server.
     - name: Printing the ssh command to connect with the server instance
       debug:
-        msg: "ssh -i {{ private_key_path }} {{ images[server_image]['user'] }}@{{ floating_ip_address }}"
+        msg: "ssh -i {{ ansible_private_key_file }} {{ images[server_image]['user'] }}@{{ floating_ip_address }}"
 
     # Add the new host to the in memory inventory.
     - name: Adding the newly generated floating IP address to the inventory
@@ -303,33 +266,8 @@
         name: "{{ floating_ip_address }}"
         groups: [ 'target-host' ]
         ansible_user: "{{ images[server_image]['user'] }}"
-        ansible_ssh_common_args: "-i {{ private_key_path }}"
 
-    # Print out the line ot add to inventory.
+    # Print out the line to add to inventory.
     - name: Printing the target host added to the inventory
       debug:
-        msg: "[target-host]\n{{ floating_ip_address }} ansible_user={{ images[server_image]['user'] }} ansible_ssh_common_args='-i {{ private_key_path }}'"
-
-    # Print out the command to set up the host with Ansible and other prereqs.
-    - name: Printing the command for setting up the host to use Ansible
-      debug:
-        msg: "ansible-playbook -v install_server_dependencies.yml"
-
-    # Print out the command to install the OpenStack images.
-    - name: Printing the command for copying the OpenStack images
-      debug:
-        msg: "ansible-playbook -v find_and_prepare_images.yml"
-
-    # Print out the command for the OpenStack and OpenShift config and install.
-    - name: Printing the command for configuring OpenShift on OpenStack
-      debug:
-        msg: "ansible-playbook -v openshift_on_openstack.yml"
-
-# import_playbook to install the dependencies on the new host VM server.
-- include: install_server_dependencies.yml
-
-# import_playbook to run the image playbook on the image-server.
-- include: find_and_prepare_images.yml
-
-# import_playbook to run the OpenStack provision and OpenShift install from the VM server.
-- include: openshift_on_openstack.yml
+        msg: "[target-host]\n{{ floating_ip_address }} ansible_user={{ images[server_image]['user'] }}"

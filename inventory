@@ -1,2 +1,5 @@
-[image-server]
-# The server that hosts the OpenStack images.
+[all:vars]
+ansible_public_key_file=
+ansible_private_key_file=
+[openstack-server]
+# Add in the remote openstack server here and the keys to connect to it.
