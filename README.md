@@ -10,7 +10,7 @@ group is a system that runs the OpenStack commands such as localhost or what
 is known as an overcloud system. The path to the key files is also important.
 2. Run the Ansible playbook:
 ```sh
-ansible-playbook -vv remote_openstack_host.yml
+ansible-playbook -vv setup_remote_openstack.yml
 ```
 
 This playbook runs a series of commands on the "openstack-server" (some require
