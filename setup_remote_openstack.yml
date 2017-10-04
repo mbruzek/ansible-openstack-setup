@@ -2,8 +2,8 @@
 - name: Prepare a remote openstack-server to run scale-ci
   hosts: openstack-server
   vars:
-    image_server: "{{ lookup('env', 'IMAGE_SERVER')"
-    image_user: "{{ lookup('env', 'IMAGE_USER')"
+    image_server: "{{ lookup('env', 'IMAGE_SERVER') }}"
+    image_user: "{{ lookup('env', 'IMAGE_USER') }}"
     install_directory: "{{ ansible_user_dir }}/scale-ci"
     repository: "https://github.com/mbruzek/ansible-openstack-setup.git"
   roles:
