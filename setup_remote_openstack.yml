@@ -42,6 +42,8 @@
 
     # Start the scale-ci playbook.
     - name: Starting a playbook on the openstack-server
-      shell: "{{ ansible_playbook_location }} -vv setup_openstack_environment.yml"
+      shell: "{{ ansible_playbook_location }} -vv setup_openstack_environment.yml 2>&1 | tee openstack_setup_log.txt"
       args:
         chdir: "{{ install_directory }}"
+        # Use bash to get the posix style redirects.
+        executable: /bin/bash
