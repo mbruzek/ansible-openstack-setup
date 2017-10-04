@@ -1,0 +1,28 @@
+---
+packages:
+  common:
+    - curl
+    - gcc
+    - git
+    - libselinux-python
+    - redhat-rpm-config
+    - sshpass
+  Fedora:
+    - python2-devel
+    - python2-virtualenv
+  CentOS:
+    - epel-release
+    - python-devel
+    - python-virtualenv
+  RedHat:
+    - python-devel
+    - python-virtualenv
+  python:
+    - ansible==2.3.2
+    - pip
+    - dnspython
+    - jinja2
+    - jmespath
+    - python-openstackclient==3.11.0
+    - python-heatclient
+    - shade

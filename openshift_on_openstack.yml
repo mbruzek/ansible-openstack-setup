@@ -2,22 +2,16 @@
 - name: Configure openshift-ansible-contrib to run in this OpenStack environment
   hosts: target-host
   vars:
-    env_id: "{{ lookup('env', 'env_id') | default('demo', true) }}"
-    keypair_name: "{{ lookup('env', 'keypair_name') }}"
+    env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
+    keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     ocp_major_minor: 3.7
-    openstack_rc_path: "{{ lookup('env', 'openstack_rc_path') }}"
-    # This variable can be used test other people's repositories.
-    openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') | default('https://github.com/openshift/openshift-ansible', true) }}"
-    # This variable can be a branch, tag, or hash for testing pull requests.
-    openshift_ansible_version: "{{ lookup('env', 'openshift_ansible_version') | default('HEAD', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
     # This variable can be used to test other people's repositories.
     openshift_ansible_contrib_repo: "{{ lookup('env', 'openshift_ansible_contrib_repo') | default('https://github.com/openshift/openshift-ansible-contrib', true) }}"
     # This variable can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
-    private_key_path: "{{ lookup('env', 'private_key_path') }}"
-    public_key_path: "{{ lookup('env', 'public_key_path') }}"
-    public_network_name: "{{ lookup('env', 'public_network_name') }}"
-    public_subnet_name: "{{ lookup('env', 'public_subnet_name') }}"
+    public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
+    public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     target_image_directory: /tmp
 
   tasks:
@@ -28,30 +22,22 @@
         state: absent
       with_items:
         - "keystonerc"
-        - "openshift-ansible-contrib"
         - "openshift-ansible"
+        - "openshift-ansible-contrib"
         - "inventory"
         - "ansible.cfg"
+
+    # Create a symbolic link to the openshift-ansible directory.
+    - name: Creating a symbolic link to the openshift-ansible directory
+      file:
+        src: /usr/share/ansible/openshift-ansible
+        path: "{{ ansible_user_dir }}/openshift-ansible"
+        state: link
 
     # Print the values that will be used for openshift-ansible.
     - name: Printing the values used to clone openshift-ansible
       debug:
         msg: "Using {{ openshift_ansible_repo }} {{ openshift_ansible_version }}"
-
-    # TODO: Don't clone this directory!
-    # Get a fresh clone of the openshift-ansible GitHub project.
-    - name: Cloning the openshift-ansible repository
-      git:
-        dest: "{{ ansible_user_dir }}/openshift-ansible"
-        # Specify a different repo to test someone else's repository.
-        repo: "{{ openshift_ansible_repo }}"
-        # Specify a version for a different branch, tag, or hash to verify PRs.
-        version: "{{ openshift_ansible_version }}"
-
-    # Print the values that will be used for openshift-ansible-contrib.
-    - name: Printing the values used to clone openshift-ansible-contrib
-      debug:
-        msg: "Using {{ openshift_ansible_contrib_repo }} {{ openshift_ansible_contrib_version }}"
 
     # Get a fresh clone of the openshift-ansible-contrib GitHub project.
     - name: Cloning the openshift-ansible-contrib repository
@@ -99,14 +85,14 @@
     # Copy the private key so this server can access the OpenShift servers.
     - name: Copying the private key to the system
       copy:
-        src: "{{ private_key_path }}"
+        src: "{{ ansible_private_key_file }}"
         dest: "{{ ansible_user_dir }}/.ssh/id_rsa"
         mode: 0600
 
     # Copy the public key so this server.
     - name: Copying the public key to the system
       copy:
-        src: "{{ public_key_path }}"
+        src: "{{ ansible_public_key_file }}"
         dest: "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
         mode: 0644
 
