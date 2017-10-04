@@ -27,16 +27,16 @@
 
 # Create a virtual Python environment.
 - name: Creating a virtual Python environment to install requirements
-  command: "virtualenv {{ ansible_user_dir }}/virtualenv"
+  command: "virtualenv {{ virtualenv_directory }}"
 
 # Install the Python packages using pip.
 - name: Installing the Python packages in the virtual environment
-  shell: "{{ ansible_user_dir }}/virtualenv/bin/pip install --quiet -U {{ item }}"
+  shell: "{{ virtualenv_directory }}/bin/pip install --quiet {{ item }}"
   with_items: "{{ packages['python'] }}"
 
 # Set the path location facts.
 - name: Setting the ansible_location and the openstack_location variables
   set_fact:
-    ansible_location: "{{ ansible_user_dir }}/virtualenv/bin/ansible"
-    ansible_playbook_location: "{{ ansible_user_dir }}/virtualenv/bin/ansible-playbook"
-    openstack_location: "{{ ansible_user_dir }}/virtualenv/bin/openstack"
+    ansible_location: "{{ virtualenv_directory }}/bin/ansible"
+    ansible_playbook_location: "{{ virtualenv_directory }}/bin/ansible-playbook"
+    openstack_location: "{{ virtualenv_directory }}/bin/openstack"

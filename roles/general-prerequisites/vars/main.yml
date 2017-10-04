@@ -26,3 +26,4 @@ packages:
     - python-openstackclient==3.11.0
     - python-heatclient
     - shade
+virtualenv_directory: virtualenv

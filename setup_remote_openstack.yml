@@ -6,6 +6,7 @@
     image_user: "{{ lookup('env', 'IMAGE_USER') }}"
     install_directory: "{{ ansible_user_dir }}/scale-ci"
     repository: "https://github.com/mbruzek/ansible-openstack-setup.git"
+    virtualenv_directory: "{{ install_directory }}/virtualenv"
   roles:
     - general-prerequisites
   tasks:
