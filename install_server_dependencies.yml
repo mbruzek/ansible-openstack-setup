@@ -10,10 +10,10 @@
     - name: Printing out the path to ansible
       debug:
         msg: "{{ ansible_location }}"
-      verbosity: 2
+        verbosity: 2
 
     # Print out the location of the ansible-playbook executable.
     - name: Printing out the path to ansible-playbook
       debug:
         msg: "{{ ansible_playbook_location }}"
-      verbosity: 2
+        verbosity: 2
