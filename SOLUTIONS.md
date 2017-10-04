@@ -25,8 +25,20 @@ openstack-host can see that network.
 
 ### TASK [Finding the oldest atomic and rhel qcow2 images]
 #### Problem: No first item, sequence was empty.
+Encountered an error when running the find_and_prepare_images.yml playbook.
 #### Solution: Only run the task when matching > 0 on each file return value.
 There were no qcow2 images on the server. The task tried to grab the first
 element in an empty list of files. Rewrote the task to use:
 `when: atomic_qcow2_images['matched'] > 0` and
 `when: rhel_qcow2_images['matched'] > 0`
+
+### TASK [Converting and compressing the images for transport]
+#### Problem: Includes a variable that is undefined 'dict object' has no attribute 'path'
+Encountered an error running the find_and_prepare_images.yml playbook. This was
+a problem when creating the images and the code was using the results of the
+stat module. As it  turns out the stat module does not return 'path' if the file
+does not exist.
+#### Solution: Changed the task to use item[0] to generate the qcow2 file path.
+Still want to use the stat results to prevent creating an image when one
+already exists, just can not use the 'path' attribute on files that do not
+exist.
