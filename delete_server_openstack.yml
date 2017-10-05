@@ -4,7 +4,7 @@
   vars:
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('virtualenv/bin/openstack', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('scale-ci/virtualenv/bin/openstack', true) }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
     security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
