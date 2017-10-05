@@ -13,15 +13,14 @@
       file:
         path: "{{ install_directory }}"
         state: absent
-  roles:
-    - general-prerequisites
-  tasks:
-    # The openstack-server has access to the private networks.
+    # Clone to openstack-server so the scripts can be run from
     - name: Cloning the repository on the openstack-server
       git:
         repo: "{{ repository }}"
         dest: "{{ install_directory }}"
-
+  roles:
+    - general-prerequisites
+  tasks:
     # Copy the public key so it can be used to create the OpenStack keypair.
     - name: Copying the public key to openstack-server
       copy:
