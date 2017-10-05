@@ -14,9 +14,10 @@
       - { name: m4.2xlarge, vcpu: 8, memory: 32768, disk: 200 }
       - { name: m4.4xlarge, vcpu: 16, memory: 65536, disk: 300 }
       - { name: m4.10xlarge, vcpu: 40, memory: 163840, disk: 500 }
+    install_directory: "{{ ansible_user_dir }}/scale-ci"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('virtualenv/bin/openstack', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('{{ install_directory }}/virtualenv/bin/openstack', true) }}"
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
@@ -66,7 +67,7 @@
     # Check for the existance of the OpenStack client.
     - name: Checking for the OpenStack client
       stat:
-        path: "{{ ansible_user_dir }}/{{ openstack_location }}"
+        path: "{{ openstack_location }}"
       register: openstack_path
 
     # Fail when the openstack client path does not exist.
