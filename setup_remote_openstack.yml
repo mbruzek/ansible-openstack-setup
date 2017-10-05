@@ -2,48 +2,16 @@
 - name: Prepare a remote openstack-server to run scale-ci
   hosts: openstack-server
   vars:
-    image_server: "{{ lookup('env', 'IMAGE_SERVER') }}"
-    image_user: "{{ lookup('env', 'IMAGE_USER') }}"
     install_directory: "{{ ansible_user_dir }}/scale-ci"
-    repository: "https://github.com/mbruzek/ansible-openstack-setup.git"
     virtualenv_directory: "{{ install_directory }}/virtualenv"
   pre_tasks:
-    # Delete any existing code before proceeding.
+    # Delete any existing code before the role installs the prerequisites.
     - name: Deleting any existing code on the openstack-server
       file:
         path: "{{ install_directory }}"
         state: absent
-    # Clone to openstack-server so the scripts can be run from
-    - name: Cloning the repository on the openstack-server
-      git:
-        repo: "{{ repository }}"
-        dest: "{{ install_directory }}"
   roles:
     - general-prerequisites
-  tasks:
-    # Copy the public key so it can be used to create the OpenStack keypair.
-    - name: Copying the public key to openstack-server
-      copy:
-        src: "{{ ansible_public_key_file }}"
-        dest: "{{ install_directory }}/key.public"
 
-    # Copy the private key so it can be used to access OpenStack VMs.
-    - name: Copying the private key to openstack-server
-      copy:
-        src: "{{ ansible_private_key_file }}"
-        dest: "{{ install_directory }}/key.private"
-        mode: 0600
-
-    # Write the inventory so the openstack-server can run an Ansible playbook.
-    - name: Writing out the inventory for the openstack-server
-      copy:
-        content: "[all:vars]\nansible_public_key_file={{ install_directory }}/key.public\nansible_private_key_file={{ install_directory }}/key.private\n[openstack-server]\nlocalhost ansible_connection=local\n[image-server]\n{{ image_server }} ansible_user={{ image_user }}\n"
-        dest: "{{ install_directory }}/inventory"
-
-    # Start the scale-ci playbook.
-    - name: Starting a playbook on the openstack-server
-      shell: "{{ ansible_playbook_location }} -vv setup_openstack_environment.yml"
-      args:
-        chdir: "{{ install_directory }}"
-        # Use bash to get the posix style redirects.
-        executable: /bin/bash
+# import_playbook to start the openstack setup.
+- include: setup_openstack_environment.yml
