@@ -16,9 +16,11 @@
       - { name: m4.10xlarge, vcpu: 40, memory: 163840, disk: 500 }
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('/home/stack/scale-ci/virtualenv/bin/openstack', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('scale-ci/virtualenv/bin/openstack', true) }}"
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
+    private_key_path: "{{ lookup('env', 'private_key_path') | default('scale-ci/key.private')}}"
+    public_key_path: "{{ lookup('env', 'public_key_path') | default('scale-ci/key.public')}}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     quotas:
@@ -151,7 +153,7 @@
 
     # Add a keypair to OpenStack that allows access to the server.
     - name: Creating {{ keypair_name }} keypair to access this server
-      shell: "{{ openstack }} keypair create --public-key {{ ansible_public_key_file }} {{ keypair_name }} --format value -c fingerprint"
+      shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }} --format value -c fingerprint"
 
     # Create the flavors so the create server can specify a flavor.
     - name: Creating the flavors
@@ -258,12 +260,12 @@
     # Print out the ssh connection command to the new server.
     - name: Printing the ssh command to connect with the server instance
       debug:
-        msg: "ssh -i {{ ansible_private_key_file }} {{ images[server_image]['user'] }}@{{ floating_ip_address }}"
+        msg: "ssh -i {{ private_key_path }} {{ images[server_image]['user'] }}@{{ floating_ip_address }}"
 
     # In some cases the "floating ip" is only accessible from the openstack-server.
     - name: Creating an ssh command that will use the openstack-server as a proxy
       set_fact:
-        proxy_command: "ssh -i {{ ansible_private_key_file }} -W %h:%p {{ ansible_user }}@{{ inventory_hostname }}"
+        proxy_command: "ssh -i {{ private_key_path }} -W %h:%p {{ ansible_user }}@{{ inventory_hostname }}"
 
     # Add the new host to the in-memory inventory.
     - name: Adding the newly generated floating IP address to the inventory
@@ -272,7 +274,7 @@
         groups: [ 'target-host' ]
         ansible_user: "{{ images[server_image]['user'] }}"
         # Adding a ProxyCommand allows servers to contact this IP using the openstack-server.
-        ansible_ssh_common_args: "-o ProxyCommand='{{ proxy_command}}'"
+        ansible_ssh_common_args: "-o ProxyCommand='{{ proxy_command }}'"
 
     # Print out the line to add to inventory.
     - name: Printing the target host added to the inventory
