@@ -42,3 +42,11 @@ does not exist.
 Still want to use the stat results to prevent creating an image when one
 already exists, just can not use the 'path' attribute on files that do not
 exist.
+
+### TASK [Creating the ci_subnet subnet]
+#### Problem: More than one Network exists with the name 'ci_network'.
+The create_server_openstack.yml playbook could not create the subnet because
+there were more than one network with the same name.
+#### Solution: Clean up better?
+The delete_server_openstack.yml uses IDs when deleting multiple networks of the
+same name. There must have been an error deleting the network from last time.

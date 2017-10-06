@@ -118,11 +118,6 @@
       shell: "{{ openstack }} network delete {{ item }}"
       with_items: "{{ networks.stdout_lines }}"
 
-    # Get the router ids.
-    - name: Getting the routers named {{ router_name }}
-      shell: "{{ openstack }} router list --name {{ router_name }} --format value -c ID"
-      register: routers
-
     # Delete the routers.
     - name: Deleting all the routers
       shell: "{{ openstack }} router delete {{ item }}"

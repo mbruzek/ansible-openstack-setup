@@ -100,12 +100,12 @@
 
     # Create a subnet with a CIDR range and link it to the private network.
     - name: Creating the {{ subnet_name }} subnet
-      shell: "{{ openstack }} subnet create --network {{ network_name }} --subnet-range {{ subnet_range }} {{ subnet_name }} --format value -c id"
+      shell: "{{ openstack }} subnet create --network {{ ci_network_uuid['stdout'] }} --subnet-range {{ subnet_range }} {{ subnet_name }} --format value -c id"
       register: subnet_uuid
 
     # Set each DNS server on the subnet of the private network.
     - name: Setting the DNS nameservers on {{ subnet_name }}
-      shell: "{{ openstack }} subnet set --dns-nameserver {{ item }} {{ subnet_name }}"
+      shell: "{{ openstack }} subnet set --dns-nameserver {{ item }} {{ subnet_uuid['stdout'] }}"
       with_items: "{{ dns_nameservers['stdout'].split(',') }}"
 
     # The subnet is configured, add it to the router.
@@ -125,20 +125,21 @@
     # Create a security group to hold all rules set in this script.
     - name: Creating {{ security_group_name }} security group for this server
       shell: "{{ openstack }} security group create {{ security_group_name }} --format value -c id"
+      register: security_group_id
 
     # Create the security group rule that allows ping (ICMP traffic).
     - name: Creating the security group rule that allows ping
-      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_name }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_id['stdout'] }} --format value -c id"
       ignore_errors: yes
 
     # Create the security group rule that allows ssh (TCP port 22).
     - name: Creating the security group rule that allows ssh
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_name }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_id['stdout'] }} --format value -c id"
       ignore_errors: yes
 
     # Create the security group rule that allows secure HTTP (TCP port 443).
     - name: Creating the security group for secure http
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_name }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_id['stdout'] }} --format value -c id"
       ignore_errors: yes
 
     # Create the floating ip address on the public network.
@@ -234,7 +235,7 @@
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
-      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_name }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_id['stdout'] }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid['stdout'] }} --format value -c id"
       register: instance_uuid
 
     # Add the floating ip address to the server.
