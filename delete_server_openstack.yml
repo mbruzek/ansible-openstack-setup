@@ -2,9 +2,10 @@
 - name: Steps to clean up an OpenStack environment
   hosts: openstack-server
   vars:
+    install_directory: "{{ ansible_user_dir}}/scale-ci"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('scale-ci/virtualenv/bin/openstack', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(install_directory ~ '/virtualenv/bin/openstack', true) }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
     security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
@@ -29,7 +30,7 @@
       register: openstack_path
 
     # When the virtual enviornment does not exist try openstack from PATH.
-    - name: Reverting to the default openstack client
+    - name: Reverting to the OpenStack client from PATH when the virtualenv does not exist
       set_fact:
         openstack_location: openstack
       when: openstack_path.stat.exists == false

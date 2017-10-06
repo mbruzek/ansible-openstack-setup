@@ -3,7 +3,8 @@
   hosts: openstack-server
   vars:
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('virtualenv/bin/openstack', true) }}"
+    install_directory: "{{ ansible_user_dir }}/scale-ci"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(install_directory ~ '/virtualenv/bin/openstack', true) }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
 
   tasks:
@@ -14,7 +15,7 @@
       register: openstack_path
 
     # When the virtual enviornment does not exist try openstack from PATH.
-    - name: Reverting to the default openstack client
+    - name: Reverting to the OpenStack client from PATH when the virtualenv does not exist
       set_fact:
         openstack_location: openstack
       when: openstack_path.stat.exists == false

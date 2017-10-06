@@ -14,13 +14,14 @@
       - { name: m4.2xlarge, vcpu: 8, memory: 32768, disk: 200 }
       - { name: m4.4xlarge, vcpu: 16, memory: 65536, disk: 300 }
       - { name: m4.10xlarge, vcpu: 40, memory: 163840, disk: 500 }
+    install_directory: "{{ ansible_user_dir }}/scale-ci"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('scale-ci/virtualenv/bin/openstack', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(install_directory ~ '/virtualenv/bin/openstack', true) }}"
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
-    private_key_path: "{{ lookup('env', 'private_key_path') | default('scale-ci/key.private', true) }}"
-    public_key_path: "{{ lookup('env', 'public_key_path') | default('scale-ci/key.public', true) }}"
+    private_key_path: "{{ lookup('env', 'private_key_path') | default(install_directory ~ '/key.private', true) }}"
+    public_key_path: "{{ lookup('env', 'public_key_path') | default(install_directory ~ '/key.public', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     quotas:
@@ -125,21 +126,21 @@
     # Create a security group to hold all rules set in this script.
     - name: Creating {{ security_group_name }} security group for this server
       shell: "{{ openstack }} security group create {{ security_group_name }} --format value -c id"
-      register: security_group_id
+      register: security_group_uuid
 
     # Create the security group rule that allows ping (ICMP traffic).
     - name: Creating the security group rule that allows ping
-      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_id['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_uuid['stdout'] }} --format value -c id"
       ignore_errors: yes
 
     # Create the security group rule that allows ssh (TCP port 22).
     - name: Creating the security group rule that allows ssh
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_id['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_uuid['stdout'] }} --format value -c id"
       ignore_errors: yes
 
     # Create the security group rule that allows secure HTTP (TCP port 443).
     - name: Creating the security group for secure http
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_id['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_uuid['stdout'] }} --format value -c id"
       ignore_errors: yes
 
     # Create the floating ip address on the public network.
@@ -200,7 +201,7 @@
     - name: Downloading the VM images
       get_url:
         checksum: "{{ images[item[0]]['sha256sum'] }}"
-        dest: "{{ playbook_dir }}/{{ item[0] }}"
+        dest: "{{ install_directory }}/{{ item[0] }}"
         url: "{{ images[item[0]]['url'] }}"
       with_together:
         - "{{ images }}"
@@ -210,7 +211,7 @@
 
     # Upload the images to OpenStack (Glance).
     - name: Uploading the images to OpenStack
-      shell: "{{ openstack }} image create {{ item[0] }} --disk-format=qcow2 --container-format=bare --file {{ playbook_dir }}/{{ item[0] }} --format value -c id"
+      shell: "{{ openstack }} image create {{ item[0] }} --disk-format=qcow2 --container-format=bare --file {{ install_directory }}/{{ item[0] }} --format value -c id"
       with_together:
         - "{{ images }}"
         - "{{ md5_checksums['results'] }}"
@@ -226,7 +227,7 @@
     # Optionally delete the VM images.
     - name: Deleting the downloaded VM images
       file:
-        path: "{{ playbook_dir }}/{{ item }}"
+        path: "{{ install_directory }}/{{ item }}"
         state: absent
       with_items: "{{ images }}"
       # Do not error if the delete fails.
@@ -235,7 +236,7 @@
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
-      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_id['stdout'] }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_uuid['stdout'] }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid['stdout'] }} --format value -c id"
       register: instance_uuid
 
     # Add the floating ip address to the server.
