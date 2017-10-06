@@ -26,5 +26,10 @@
         dest: "{{ install_directory }}/key.private"
         mode: 0600
 
+    # Remove the known_hosts file to avoid error messages.
+    - name: Removing known_hosts to avoid warnings on duplicate IP addresses
+      known_hosts:
+        state: absent
+
 # import_playbook to start the openstack setup.
 - include: setup_openstack_environment.yml

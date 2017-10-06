@@ -4,15 +4,19 @@
   vars:
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
-    ocp_major_minor: 3.7
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
-    # This variable can be used to test other people's repositories.
+    # The openshift-ansible repository optional, if blank the code on the image is used.
+    openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') }}"
+    # The version can be a branch, tag, or hash for testing pull requests.
+    openshift_ansible_version: "{{ lookup('env', 'openshift_ansible_version') | default('HEAD', true) }}"
+    # The openshift-ansible-contrib repository to use (required).
     openshift_ansible_contrib_repo: "{{ lookup('env', 'openshift_ansible_contrib_repo') | default('https://github.com/openshift/openshift-ansible-contrib', true) }}"
-    # This variable can be a branch, tag, or hash for testing pull requests.
+    # This version can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(ansible_usr_dir ~ '/virtualenv/bin/openstack', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_usr_dir ~ '/keystonerc', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
-    target_image_directory: /tmp
+    virtualenv_bin_path: "{{ ansible_usr_dir }}/virtualenv/bin"
 
   tasks:
     # Remove all old directories and files.
@@ -21,7 +25,7 @@
         path: "{{ item }}"
         state: absent
       with_items:
-        - "keystonerc"
+        - "{{ openstack_rc }}"
         - "openshift-ansible"
         - "openshift-ansible-contrib"
         - "inventory"
@@ -33,11 +37,28 @@
         src: /usr/share/ansible/openshift-ansible
         path: "{{ ansible_user_dir }}/openshift-ansible"
         state: link
+      when: openshift_ansible_repo == ""
 
-    # Print the values that will be used for openshift-ansible.
+    # Print the values that will be used for the openshift-ansible repository.
     - name: Printing the values used to clone openshift-ansible
       debug:
-        msg: "Using {{ openshift_ansible_repo }} {{ openshift_ansible_version }}"
+        msg: "openshift-ansible repository: {{ openshift_ansible_repo }} {{ openshift_ansible_version }}"
+      when: openshift_ansible_repo != ""
+
+    # Get a fresh clone of the openshift-ansible GitHub project.
+    - name: Cloning the openshift-ansible repository
+      git:
+        dest: "{{ ansible_user_dir }}/openshift-ansible"
+        # Specify a different repo to test someone else's repository.
+        repo: "{{ openshift_ansible_repo }}"
+        # Specify a version for a different branch, tag, or hash to verify PRs.
+        version: "{{ openshift_ansible_version }}"
+      when: openshift_ansible_repo != ""
+
+    # Print the values that will be used for openshift-ansible-contrib.
+    - name: Printing the values used to clone openshift-ansible-contrib
+      debug:
+        msg: "openshift-ansible-contrib repository: {{ openshift_ansible_contrib_repo }} {{ openshift_ansible_contrib_version }}"
 
     # Get a fresh clone of the openshift-ansible-contrib GitHub project.
     - name: Cloning the openshift-ansible-contrib repository
@@ -48,14 +69,14 @@
         # Specify a version for a different branch, tag, or hash to verify PRs.
         version: "{{ openshift_ansible_contrib_version }}"
 
-    # Set a variable.
+    # Set the contrib playbooks provisioning openstack path.
     - name: Creating the openshift_openstack directory variable
       set_fact:
         openshift_openstack_dir: "openshift-ansible-contrib/playbooks/provisioning/openstack"
 
     # Install the ansible-galaxy requirements.
     - name: Running the ansible-galaxy install command
-      command: ansible-galaxy install -r {{ openshift_openstack_dir }}/galaxy-requirements.yaml -p openshift-ansible-contrib/roles
+      command: "{{ virtualenv_bin_path }}/ansible-galaxy install -r {{ openshift_openstack_dir }}/galaxy-requirements.yaml -p openshift-ansible-contrib/roles"
 
     # Copy the remote sample-inventory to another remote directory.
     - name: Copying the sample inventory directory
@@ -99,50 +120,25 @@
     # Copy the rc file so the host can talk to OpenStack.
     - name: Copying the OpenStack rc file to {{ ansible_user_dir }}/keystonerc
       copy:
-        src: "{{ openstack_rc_path }}"
-        dest: "{{ ansible_user_dir }}/keystonerc"
+        src: "keystonerc"
+        dest: "{{ openstack_rc }}"
 
-    # Get the path to the OpenStack client.
-    - name: Finding the path to the OpenStack client
-      command: "which openstack"
+    # Check for the existance of the OpenStack client.
+    - name: Checking for the OpenStack client
+      stat:
+        path: "{{ openstack_location }}"
       register: openstack_path
 
-    # Set the OpenStack variable correctly.
-    - name: Setting the OpenStack variables
+    # Fail when the openstack client path does not exist.
+    - name: Aborting because the OpenStack client does not exist
+      fail:
+        msg: "The openstack client path '{{ openstack_location }}' is invalid."
+      when: openstack_path.stat.exists == false
+
+    # The openstack variable includes the rc file and the path to the OpenStack client.
+    - name: Setting openstack variable to source the rc file and contain path to client
       set_fact:
-        source_rc: "source ~/keystonerc"
-        openstack: "source ~/keystonerc; {{ openstack_path.stdout }}"
-
-    # Find the images to upload.
-    - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ target_image_directory }}
-      find:
-        paths: "{{ target_image_directory }}"
-        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+qcow2"
-        use_regex: yes
-        recurse: true
-      register: images
-
-    # Delete any images with the same name as the one we are about to upload.
-    - name: Deleting any existing images in OpenStack
-      shell: "{{ openstack }} image delete ocp-{{ ocp_major_minor }}-{{ item }}"
-      with_items: "{{ [ 'atomic', 'rhel' ] }}"
-      ignore_errors: true
-
-    # Upload the images to OpenStack (Glance).
-    - name: Uploading the images to OpenStack
-      shell: "{{ openstack }} image create --disk-format qcow2 --container-format bare --file {{ item.path }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item.path)|ternary('atomic','rhel') }} --format value -c id"
-      with_items: "{{ images.files }}"
-      register: create_result
-      # Retry up to 3 times looking for a successful return code.
-      until: create_result.rc == 0
-      retries: 3
-      delay: 5
-      ignore_errors: yes
-
-    # Add metadata to the OpenStack about the image.
-    - name: Adding metadata about the image
-      shell: "{{ openstack }} image set --property file_name={{ item.path|basename }} --property directory={{ item.path|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item.path)|ternary('atomic','rhel') }}"
-      with_items: "{{ images.files }}"
+        openstack: "source {{ openstack_rc }}; {{ openstack_location }}"
 
     # Get the public DNS servers from OpenStack.
     - name: Getting the public DNS servers from OpenStack
@@ -166,16 +162,21 @@
         src: templates/OSEv3.yml
         dest: inventory/group_vars/OSEv3.yml
 
+    # Set a variable for the ansible-playbook.
+    - name: Setting ansible-playbook variable
+      set_fact:
+        ansible_playbook: "source {{ openstack_rc }}; {{ virtualenv_bin_path }}/ansible-playbook"
+
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
-      shell: "{{ source_rc }}; ansible-playbook {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
+      shell: "{{ ansible-playbook }} {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
 
     # Run the Ansible playbook that installs OpenShift.
     - name: Running the OpenShift install
-      shell: "{{ source_rc }}; ansible-playbook openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
+      shell: "{{ ansible-playbook }} openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash

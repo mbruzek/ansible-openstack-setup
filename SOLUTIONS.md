@@ -47,6 +47,20 @@ exist.
 #### Problem: More than one Network exists with the name 'ci_network'.
 The create_server_openstack.yml playbook could not create the subnet because
 there were more than one network with the same name.
-#### Solution: Clean up better?
-The delete_server_openstack.yml uses IDs when deleting multiple networks of the
-same name. There must have been an error deleting the network from last time.
+#### Solution: Clean up the OpenStack environment better and use UUIDs.
+The delete_server_openstack.yml uses the UUIDs of all the networks with the
+same name and deletes each UUID. There must have been an error deleting the
+network from last time. The creation code could also use UUIDs to prevent this
+error from occurring again.
+
+### TASK [Creating a symbolic link to the openshift-ansible directory]
+#### Problem: src file does not exist, use \"force=yes\" if you really want to create the link: /usr/share/ansible/openshift-ansible
+The image that is used for ansible-host is fedora-26, and does not contain
+the openshift-ansible code. The ocp-3.7 images contain the openshift-ansible
+code of that particular build.
+#### Solution: Download the OCP images before creating the ansible-host and use that image for the VM.
+The find_and_prepare_images.yml downloads the images to the ansible-host so that
+needs to change to the openstack-server host, unless you can download the images
+to Glance directly. Move find_and_prepare_images.yml up in the call chain to
+have the images available when create_server_openstack.yml creates the server
+VM.

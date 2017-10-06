@@ -5,8 +5,9 @@
     delete_qcow2_images: false
     files: []
     image_directory: image_builder/qcow_images
-    ocp_major_minor: 3.7
-    target_image_directory: /tmp
+    ocp_major_minor: "{{ lookup('env', 'ocp_major_minor') | default('3.7', true) }}"
+    remote_host: "{{ groups['openstack-server'][0] }}"
+    remote_image_directory: "/home/{{ hostvars[remote_hostname]['ansible_user']}}/scale-ci"
     web_root: /var/www/html
 
   tasks:
@@ -138,19 +139,19 @@
     # Create the image directories on the target host.
     - name: Creating the image directories on the target host
       file:
-        path: "{{ target_image_directory }}/{{ item|dirname }}"
+        path: "{{ remote_image_directory }}/{{ item|dirname }}"
         state: directory
       with_items: "{{ files }}"
-      delegate_to: "{{ groups['target-host'][0] }}"
+      delegate_to: "{{ remote_host }}"
 
     # Copy the images from image server to the target host.
     - name: Copying the files from the image server to the target host
       get_url:
         checksum: "sha256:{{ item[1]['stat']['checksum'] }}"
-        dest: "{{ target_image_directory }}/{{ (item[0]|splitext)[0] }}.qcow2"
+        dest: "{{ remote_image_directory }}/{{ (item[0]|splitext)[0] }}.qcow2"
         # http://image-server/image_buiilder/qcow_images/{atomic,rhel}/*.qcow2
         url: "http://{{ groups['image-server'][0] }}/{{ (item[0]|splitext)[0] }}.qcow2"
       with_together:
         - "{{ files }}"
         - "{{ qcow2_files['results'] }}"
-      delegate_to: "{{ groups['target-host'][0] }}"
+      delegate_to: "{{ remote_host }}"

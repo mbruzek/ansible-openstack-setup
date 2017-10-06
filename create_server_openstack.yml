@@ -1,4 +1,4 @@
----
+cloud-user---
 - name: Set up one virtual machine server in a new OpenStack environment
   hosts: openstack-server
   vars:
@@ -17,6 +17,14 @@
     install_directory: "{{ ansible_user_dir }}/scale-ci"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
+    ocp_major_minor: "{{ lookup('env', 'ocp_major_minor') | default('3.7', true) }}"
+    openshift_flavors:
+      - { name: container_storage, vcpu: 16, memory: 65536, disk: 128 }
+      - { name: load_balancer, vcpu: 4, memory: 16384, disk: 128 }
+      - { name: infra_elastic, vcpu: 16, memory: 65536, disk: 128 }
+      - { name: master_etcd, vcpu: 64, memory: 245760, disk: 512 }
+      - { name: node_small, vcpu: 1, memory: 2048, disk: 32 }
+      - { name: node_average, vcpu: 4, memory: 16384, disk: 64 }
     openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(install_directory ~ '/virtualenv/bin/openstack', true) }}"
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
@@ -42,29 +50,7 @@
       - { name: n1-standard-16, vcpu: 16, memory: 60000, disk: 128 }
       - { name: n1-standard-32, vcpu: 32, memory: 120000, disk: 256 }
       - { name: n1-standard-64, vcpu: 64, memory: 240000, disk: 256 }
-    openshift_flavors:
-      - { name: container_storage, vcpu: 16, memory: 65536, disk: 128 }
-      - { name: load_balancer, vcpu: 4, memory: 16384, disk: 128 }
-      - { name: infra_elastic, vcpu: 16, memory: 65536, disk: 128 }
-      - { name: master_etcd, vcpu: 64, memory: 245760, disk: 512 }
-      - { name: node_small, vcpu: 1, memory: 2048, disk: 32 }
-      - { name: node_average, vcpu: 4, memory: 16384, disk: 64 }
-    images:
-      fedora-26:
-        md5sum: d8e3cd3512cb1cf71720e4bb33671a2a
-        sha256sum: sha256:37a621dda65b04e8b6eee207088ff7697795cb2affdac13ed77166453989557c
-        url: https://download.fedoraproject.org/pub/fedora/linux/releases/26/CloudImages/x86_64/images/Fedora-Cloud-Base-26-1.5.x86_64.qcow2
-        user: fedora
-      centos-7:
-        md5sum: 14cb34a3dcb30364631c689547dcd1bd
-        sha256sum: sha256:97ea5a1f8468b1ae1cbded3a88dd69ad1572a2f3765e8ef54bca7ddcdcd9deee
-        url: https://cloud.centos.org/centos/7/images/CentOS-7-x86_64-GenericCloud-1708.qcow2c
-        user: centos
-      rhel-7.4:
-        md5sum: feb1a599deb59ade97dc0935fbb24c8c
-        sha256sum: sha256:b9fd65e22e8d3eb82eecf78b36471109fa42ee46fc12fd2ba2fa02e663fd21ef
-        url: http://download-node-02.eng.bos.redhat.com/released/RHEL-7/7.4/Server/x86_64/images/rhel-guest-image-7.4-191.x86_64.qcow2
-        user: cloud-user
+
   tasks:
     # Check for the existance of the OpenStack client.
     - name: Checking for the OpenStack client
@@ -189,50 +175,37 @@
       # Only set quotas when the project is defined.
       when: openstack_project != ""
 
-    # Get the checksum (md5) of the image that is already in OpenStack.
-    - name: Getting the checksum for the images in OpenStack
-      shell: "{{ openstack }} image show {{ item }} --format value -c checksum"
-      register: md5_checksums
-      # Do not error if the image has not been uploaded yet.
+    # Find the images to upload.
+    - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ install_directory }}
+      find:
+        paths: "{{ install_directory }}"
+        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+qcow2"
+        use_regex: yes
+        recurse: true
+      register: images
+
+    # Delete any images with the same name as the one we are about to upload.
+    - name: Deleting the existing images in OpenStack
+      shell: "{{ openstack }} image delete ocp-{{ ocp_major_minor }}-{{ item }}"
+      with_items: "{{ [ 'atomic', 'rhel' ] }}"
+      # Do not fail if here is no image to delete.
       ignore_errors: true
-      with_items: "{{ images }}"
 
-    # Download the image only if you need to.
-    - name: Downloading the VM images
-      get_url:
-        checksum: "{{ images[item[0]]['sha256sum'] }}"
-        dest: "{{ install_directory }}/{{ item[0] }}"
-        url: "{{ images[item[0]]['url'] }}"
-      with_together:
-        - "{{ images }}"
-        - "{{ md5_checksums['results'] }}"
-      # Download the image when the checksum from OpenStack does not match the md5.
-      when: images[item[0]]['md5sum'] != item[1]['stdout']
-
-    # Upload the images to OpenStack (Glance).
+    # Upload the images to Glance.
     - name: Uploading the images to OpenStack
-      shell: "{{ openstack }} image create {{ item[0] }} --disk-format=qcow2 --container-format=bare --file {{ install_directory }}/{{ item[0] }} --format value -c id"
-      with_together:
-        - "{{ images }}"
-        - "{{ md5_checksums['results'] }}"
-      # Create image when the checksum from OpenStack does not match the md5.
-      when: images[item[0]]['md5sum'] != item[1]['stdout']
+      shell: "{{ openstack }} image create --disk-format qcow2 --container-format bare --file {{ item['path'] }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item['path'])|ternary('atomic','rhel') }} --format value -c id"
+      with_items: "{{ images['files'] }}"
+      register: create_result
+      # Retry up to 3 times looking for a successful return code.
+      until: create_result['rc'] == 0
+      retries: 3
+      delay: 5
+      ignore_errors: yes
 
-    # Set the metadata so we know where the image was from.
-    - name: Adding metadata about the images
-      shell: "{{ openstack }} image set --property image_url={{ images[item]['url'] }} --property sha256sum={{ images[item]['sha256sum'] }} --property user={{ images[item]['user'] }} {{ item }}"
-      with_items: "{{ images }}"
-      ignore_errors: true
-
-    # Optionally delete the VM images.
-    - name: Deleting the downloaded VM images
-      file:
-        path: "{{ install_directory }}/{{ item }}"
-        state: absent
-      with_items: "{{ images }}"
-      # Do not error if the delete fails.
-      ignore_errors: true
-      when: delete_images == true
+    # Add metadata to the OpenStack about the image.
+    - name: Adding metadata about the image
+      shell: "{{ openstack }} image set --property file_name={{ item['path']|basename }} --property directory={{ item['path']|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item['path'])|ternary('atomic','rhel') }}"
+      with_items: "{{ images['files'] }}"
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
@@ -262,7 +235,7 @@
     # Print out the ssh connection command to the new server.
     - name: Printing the ssh command to connect with the server instance
       debug:
-        msg: "ssh -i {{ private_key_path }} {{ images[server_image]['user'] }}@{{ floating_ip_address }}"
+        msg: "ssh -i {{ private_key_path }} {{ [server_image]['user'] }}@{{ floating_ip_address }}"
 
     # In some cases the "floating ip" is only accessible from the openstack-server.
     - name: Creating an ssh command that will use the openstack-server as a proxy
@@ -275,11 +248,19 @@
       add_host:
         name: "{{ floating_ip_address }}"
         groups: [ 'target-host' ]
-        ansible_user: "{{ images[server_image]['user'] }}"
+        ansible_user: cloud-user
         # Adding a ProxyCommand allows servers to contact this IP using the openstack-server.
         ansible_ssh_common_args: "-o ProxyCommand='{{ proxy_command }}'"
 
     # Print out the line to add to inventory.
     - name: Printing the target host added to the inventory
       debug:
-        msg: "[target-host]\n{{ floating_ip_address }} ansible_user={{ images[server_image]['user'] }}"
+        msg: "[target-host]\n{{ floating_ip_address }} ansible_user=cloud-user"
+
+    # Copy the OpenStack rc file to the target host.
+    - name: Copying the OpenStack rc file to the target host
+      copy:
+        src: "{{ openstack_rc }}"
+        remote_src: yes
+        dest: "/home/cloud-user/keystonerc"
+      delegate_to: "{{ floating_ip_address }}"
