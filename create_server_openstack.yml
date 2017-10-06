@@ -267,7 +267,8 @@
     # In some cases the "floating ip" is only accessible from the openstack-server.
     - name: Creating an ssh command that will use the openstack-server as a proxy
       set_fact:
-        proxy_command: "ssh -i {{ private_key_path }} -W %h:%p {{ ansible_user }}@{{ inventory_hostname }}"
+        # The key path must be from the remote host not the openstack-server.
+        proxy_command: "ssh -i {{ ansible_private_key_file }} -W %h:%p {{ ansible_user }}@{{ inventory_hostname }}"
 
     # Add the new host to the in-memory inventory.
     - name: Adding the newly generated floating IP address to the inventory
