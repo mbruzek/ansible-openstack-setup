@@ -124,16 +124,14 @@
       shell: "{{ openstack }} router delete {{ item }}"
       with_items: "{{ routers.stdout_lines }}"
 
-    # Get the images.
-    - name: Getting all the images
-      shell: "{{ openstack }} image list --format value -c ID"
-      register: images
-      ignore_errors: true
-      when: delete_images | bool == true
-
     # Delete the images.
     - name: Deleting all the images
       shell: "{{ openstack }} image delete {{ item }}"
-      with_items: "{{ images.stdout_lines }}"
+      with_items:
+        - "centos-7"
+        - "fedora-26"
+        - "ocp-3.7-atomic"
+        - "ocp-3.7-rhel"
+        - "rhel-7.4"
       ignore_errors: true
       when: delete_images | bool == true

@@ -2,7 +2,6 @@ cloud-user---
 - name: Set up one virtual machine server in a new OpenStack environment
   hosts: openstack-server
   vars:
-    delete_images: true
     ec2_flavors:
       # https://aws.amazon.com/ec2/previous-generation/
       - { name: m1.small, vcpu: 1, memory: 1740, disk: 40 }
@@ -37,7 +36,7 @@ cloud-user---
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
     security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
     server_flavor: "{{ lookup('env', 'server_flavor') | default('m1.medium', true) }}"
-    server_image: "{{ lookup('env', 'server_image') | default('fedora-26', true) }}"
+    server_image: "{{ lookup('env', 'server_image') | default('ocp-3.7-rhel', true) }}"
     server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
     subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
     subnet_range: "{{ lookup('env', 'subnet_range') | default('192.168.4.0/24', true) }}"
@@ -258,9 +257,8 @@ cloud-user---
         msg: "[target-host]\n{{ floating_ip_address }} ansible_user=cloud-user"
 
     # Copy the OpenStack rc file to the target host.
-    - name: Copying the OpenStack rc file to the target host
-      copy:
+    - name: Fetching the OpenStack rc file
+      fetch:
         src: "{{ openstack_rc }}"
-        remote_src: yes
-        dest: "/home/cloud-user/keystonerc"
-      delegate_to: "{{ floating_ip_address }}"
+        flat: yes
+        dest: "{{ install_directory }}/openstackrc"

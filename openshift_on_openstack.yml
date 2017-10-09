@@ -13,7 +13,7 @@
     # This version can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
     openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(ansible_usr_dir ~ '/virtualenv/bin/openstack', true) }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_usr_dir ~ '/keystonerc', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_usr_dir ~ '/scale-ci/openstackrc', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     virtualenv_bin_path: "{{ ansible_usr_dir }}/virtualenv/bin"
@@ -25,7 +25,7 @@
         path: "{{ item }}"
         state: absent
       with_items:
-        - "{{ openstack_rc }}"
+        - "{{ ansible_user_dir }}/keystonerc"
         - "openshift-ansible"
         - "openshift-ansible-contrib"
         - "inventory"
@@ -120,8 +120,8 @@
     # Copy the rc file so the host can talk to OpenStack.
     - name: Copying the OpenStack rc file to {{ ansible_user_dir }}/keystonerc
       copy:
-        src: "keystonerc"
-        dest: "{{ openstack_rc }}"
+        dest: "{{ ansible_user_dir }}/keystonerc"
+        src: "{{ openstack_rc }}"
 
     # Check for the existance of the OpenStack client.
     - name: Checking for the OpenStack client
@@ -138,7 +138,7 @@
     # The openstack variable includes the rc file and the path to the OpenStack client.
     - name: Setting openstack variable to source the rc file and contain path to client
       set_fact:
-        openstack: "source {{ openstack_rc }}; {{ openstack_location }}"
+        openstack: "source {{ ansible_user_dir }}/keystonerc; {{ openstack_location }}"
 
     # Get the public DNS servers from OpenStack.
     - name: Getting the public DNS servers from OpenStack
@@ -165,7 +165,7 @@
     # Set a variable for the ansible-playbook.
     - name: Setting ansible-playbook variable
       set_fact:
-        ansible_playbook: "source {{ openstack_rc }}; {{ virtualenv_bin_path }}/ansible-playbook"
+        ansible_playbook: "source {{ ansible_user_dir }}/keystonerc; {{ virtualenv_bin_path }}/ansible-playbook"
 
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
