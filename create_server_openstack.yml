@@ -63,6 +63,13 @@
         msg: "The openstack client path '{{ openstack_location }}' is invalid."
       when: openstack_path.stat.exists == false
 
+    # Copy the OpenStack rc file to the target host.
+    - name: Fetching the OpenStack rc file from openstack-server
+      fetch:
+        src: "{{ openstack_rc }}"
+        flat: yes
+        dest: "{{ install_directory }}/openstackrc"
+
     # The openstack variable includes the rc file and the path to the OpenStack client.
     - name: Setting openstack variable to source the rc file and contain path to client
       set_fact:
@@ -234,7 +241,7 @@
     # Print out the ssh connection command to the new server.
     - name: Printing the ssh command to connect with the server instance
       debug:
-        msg: "ssh -i {{ private_key_path }} {{ [server_image]['user'] }}@{{ floating_ip_address }}"
+        msg: "ssh -i {{ private_key_path }} {{ cloud-user }}@{{ floating_ip_address }}"
 
     # In some cases the "floating ip" is only accessible from the openstack-server.
     - name: Creating an ssh command that will use the openstack-server as a proxy
@@ -255,10 +262,3 @@
     - name: Printing the target host added to the inventory
       debug:
         msg: "[target-host]\n{{ floating_ip_address }} ansible_user=cloud-user"
-
-    # Copy the OpenStack rc file to the target host.
-    - name: Fetching the OpenStack rc file
-      fetch:
-        src: "{{ openstack_rc }}"
-        flat: yes
-        dest: "{{ install_directory }}/openstackrc"
