@@ -241,7 +241,7 @@
     # Print out the ssh connection command to the new server.
     - name: Printing the ssh command to connect with the server instance
       debug:
-        msg: "ssh -i {{ private_key_path }} {{ cloud-user }}@{{ floating_ip_address }}"
+        msg: "ssh -i {{ private_key_path }} cloud-user@{{ floating_ip_address }}"
 
     # In some cases the "floating ip" is only accessible from the openstack-server.
     - name: Creating an ssh command that will use the openstack-server as a proxy
