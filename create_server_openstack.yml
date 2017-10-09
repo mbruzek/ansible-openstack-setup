@@ -68,7 +68,7 @@
       fetch:
         src: "{{ openstack_rc }}"
         flat: yes
-        dest: "{{ install_directory }}/openstackrc"
+        dest: "keystonerc"
 
     # The openstack variable includes the rc file and the path to the OpenStack client.
     - name: Setting openstack variable to source the rc file and contain path to client
