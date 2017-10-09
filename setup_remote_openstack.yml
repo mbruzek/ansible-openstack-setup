@@ -8,8 +8,11 @@
     # Delete any existing code before the role installs the prerequisites.
     - name: Deleting any existing code on the openstack-server
       file:
-        path: "{{ install_directory }}"
+        path: "{{ item }}"
         state: absent
+      with_items:
+        - "{{ install_directory }}"
+        - "{{ ansible_user_dir }}/.ssh/known_hosts"
   roles:
     - general-prerequisites
   tasks:
@@ -25,11 +28,6 @@
         src: "{{ ansible_private_key_file }}"
         dest: "{{ install_directory }}/key.private"
         mode: 0600
-
-    # Remove the known_hosts file to avoid error messages.
-    - name: Removing known_hosts to avoid warnings on duplicate IP addresses
-      known_hosts:
-        state: absent
 
 # import_playbook to start the openstack setup.
 - include: setup_openstack_environment.yml
