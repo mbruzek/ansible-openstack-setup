@@ -64,3 +64,12 @@ needs to change to the openstack-server host, unless you can download the images
 to Glance directly. Move find_and_prepare_images.yml up in the call chain to
 have the images available when create_server_openstack.yml creates the server
 VM.
+
+### TASK [Deleting the subnet ci_subnet]
+#### Problem: Failed to delete subnet with name or ID '19e72f57-8f4e-4214-bdce-02de67d565a8'
+The delete_server_openstack.yml playbook encountered an error when attempting
+to delete the ci_subnet. The message specified further information:
+`Unable to complete operation on subnet 19e72f57-8f4e-4214-bdce-02de67d565a8: One or more ports have an IP allocation from this subnet.`
+#### Solution: Delete the test server VM on that subnet.
+Was testing some things with a manually created VM server that used that subnet.
+The delete script does not know about servers not created by the scripts.

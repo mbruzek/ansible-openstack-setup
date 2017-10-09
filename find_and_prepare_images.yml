@@ -7,7 +7,7 @@
     image_directory: image_builder/qcow_images
     ocp_major_minor: "{{ lookup('env', 'ocp_major_minor') | default('3.7', true) }}"
     remote_host: "{{ groups['openstack-server'][0] }}"
-    remote_image_directory: "/home/{{ hostvars[remote_hostname]['ansible_user']}}/scale-ci"
+    remote_image_directory: "/home/{{ hostvars[remote_host]['ansible_user'] }}/scale-ci"
     web_root: /var/www/html
 
   tasks:
