@@ -19,11 +19,12 @@ packages:
     - python-virtualenv
   python:
     - ansible==2.3.2
-    - pip
     - dnspython
     - jinja2
     - jmespath
     - python-openstackclient==3.11.0
     - python-heatclient
     - shade
+pip: pip
+# When the virtualenv_directory is defined, a Python virtual environment is created.
 # virtualenv_directory: virtualenv

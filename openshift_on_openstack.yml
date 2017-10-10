@@ -12,11 +12,10 @@
     openshift_ansible_contrib_repo: "{{ lookup('env', 'openshift_ansible_contrib_repo') | default('https://github.com/openshift/openshift-ansible-contrib', true) }}"
     # This version can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(ansible_user_dir ~ '/virtualenv/bin/openstack', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('/usr/bin/openstack', true) }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('keystonerc', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
-    virtualenv_bin_path: "{{ ansible_user_dir }}/virtualenv/bin"
 
   tasks:
     # Remove all old directories and files.
@@ -77,7 +76,7 @@
 
     # Install the ansible-galaxy requirements.
     - name: Running the ansible-galaxy install command
-      command: "{{ virtualenv_bin_path }}/ansible-galaxy install -r {{ openshift_openstack_dir }}/galaxy-requirements.yaml -p openshift-ansible-contrib/roles"
+      command: "ansible-galaxy install -r {{ openshift_openstack_dir }}/galaxy-requirements.yaml -p openshift-ansible-contrib/roles"
 
     # Copy the remote sample-inventory to another remote directory.
     - name: Copying the sample inventory directory
@@ -166,7 +165,7 @@
     # Set a variable for the ansible-playbook.
     - name: Setting ansible-playbook variable
       set_fact:
-        ansible_playbook: "source {{ ansible_user_dir }}/keystonerc; {{ virtualenv_bin_path }}/ansible-playbook"
+        ansible_playbook: "source {{ ansible_user_dir }}/keystonerc; ansible-playbook"
 
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install

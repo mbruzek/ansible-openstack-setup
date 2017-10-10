@@ -25,24 +25,20 @@
   raw: yum --assumeyes --debuglevel 1 --errorlevel 1 install {{ item }}
   with_items: "{{ packages[ ansible_distribution ] }}"
 
-# Define the variable if it is not already defined.
-- name: Defining the virtualenv directory
-  set_fact:
-    virtualenv_directory: virtualenv
-  when: virtualenv_directory is not defined
-
 # Create a virtual Python environment.
 - name: Creating a virtual Python environment to install requirements
   command: "virtualenv {{ virtualenv_directory }}"
+  when: virtualenv_directory is defined
 
-# Install the Python packages using pip.
-- name: Installing the Python packages in the virtual environment
-  shell: "{{ virtualenv_directory }}/bin/pip install --quiet {{ item }}"
-  with_items: "{{ packages['python'] }}"
-
-# Set the path location facts.
-- name: Setting the ansible_location and the openstack_location variables
+# Change the path to the pip variable if necessary.
+- name: Changing the path to pip
   set_fact:
-    ansible_location: "{{ virtualenv_directory }}/bin/ansible"
-    ansible_playbook_location: "{{ virtualenv_directory }}/bin/ansible-playbook"
-    openstack_location: "{{ virtualenv_directory }}/bin/openstack"
+    pip: "{{ virtualenv_directory }}/bin/pip"
+  when: virtualenv_directory is defined
+
+# Install the Python packages using pip in the shell module.
+- name: Installing the Python packages
+  become: "{{ virtualenv_directory is not defined }}"
+  # Using shell module because the Ansible pip module may not be installed.
+  shell: "{{ pip }} install --quiet {{ item }}"
+  with_items: "{{ packages['python'] }}"
