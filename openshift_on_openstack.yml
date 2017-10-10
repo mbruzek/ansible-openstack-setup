@@ -170,14 +170,14 @@
 
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
-      shell: "{{ ansible-playbook }} {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
+      shell: "{{ ansible_playbook }} {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
 
     # Run the Ansible playbook that installs OpenShift.
     - name: Running the OpenShift install
-      shell: "{{ ansible-playbook }} openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
+      shell: "{{ ansible_playbook }} openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
