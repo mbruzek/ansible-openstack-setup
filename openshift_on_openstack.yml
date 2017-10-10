@@ -37,6 +37,7 @@
         src: /root/openshift-ansible
         path: "{{ ansible_user_dir }}/openshift-ansible"
         state: link
+      become: true
       when: openshift_ansible_repo == ""
 
     # Print the values that will be used for the openshift-ansible repository.
