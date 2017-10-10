@@ -13,7 +13,7 @@
     # This version can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
     openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(ansible_user_dir ~ '/virtualenv/bin/openstack', true) }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_user_dir ~ 'keystonerc', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('keystonerc', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     virtualenv_bin_path: "{{ ansible_user_dir }}/virtualenv/bin"
@@ -34,7 +34,7 @@
     # Create a symbolic link to the openshift-ansible directory.
     - name: Creating a symbolic link to the openshift-ansible directory
       file:
-        src: /usr/share/ansible/openshift-ansible
+        src: /root/openshift-ansible
         path: "{{ ansible_user_dir }}/openshift-ansible"
         state: link
       when: openshift_ansible_repo == ""
