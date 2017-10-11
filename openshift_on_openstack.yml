@@ -3,16 +3,16 @@
   hosts: target-host
   vars:
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
+    image_name: "{{ lookup('env', 'image_name') | default('centos-7') }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
-    # The openshift-ansible repository optional, if blank the code on the image is used.
-    openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') }}"
+    # The openshift-ansible repository to use if the code is not already on the host.
+    openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') | default('https://github.com/openshift/openshift-ansible', true) }}"
     # The version can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_version: "{{ lookup('env', 'openshift_ansible_version') | default('HEAD', true) }}"
     # The openshift-ansible-contrib repository to use (required).
     openshift_ansible_contrib_repo: "{{ lookup('env', 'openshift_ansible_contrib_repo') | default('https://github.com/openshift/openshift-ansible-contrib', true) }}"
     # This version can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('/usr/bin/openstack', true) }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('keystonerc', true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
@@ -30,20 +30,30 @@
         - "inventory"
         - "ansible.cfg"
 
+    # Check if the server contains the openshift-ansible code already.
+    - name: Checking file system status for the openshift-ansible directory
+      stat:
+        get_checksum: no
+        get_md5: no
+        path: "/root/openshift-ansible"
+      register: openshift_ansible
+
     # Create a symbolic link to the openshift-ansible directory.
     - name: Creating a symbolic link to the openshift-ansible directory
       file:
         src: /root/openshift-ansible
         path: "{{ ansible_user_dir }}/openshift-ansible"
         state: link
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
       become: true
-      when: openshift_ansible_repo == ""
+      when: openshift_ansible['stat']['exists']
 
     # Print the values that will be used for the openshift-ansible repository.
     - name: Printing the values used to clone openshift-ansible
       debug:
         msg: "openshift-ansible repository: {{ openshift_ansible_repo }} {{ openshift_ansible_version }}"
-      when: openshift_ansible_repo != ""
+      when: openshift_ansible['stat']['exists'] == false
 
     # Get a fresh clone of the openshift-ansible GitHub project.
     - name: Cloning the openshift-ansible repository
@@ -53,7 +63,7 @@
         repo: "{{ openshift_ansible_repo }}"
         # Specify a version for a different branch, tag, or hash to verify PRs.
         version: "{{ openshift_ansible_version }}"
-      when: openshift_ansible_repo != ""
+      when: openshift_ansible['stat']['exists'] == false
 
     # Print the values that will be used for openshift-ansible-contrib.
     - name: Printing the values used to clone openshift-ansible-contrib
@@ -107,14 +117,14 @@
     - name: Copying the private key to the system
       copy:
         src: "{{ ansible_private_key_file }}"
-        dest: "{{ ansible_user_dir }}/.ssh/id_rsa"
+        dest: "{{ ansible_user_dir }}/.ssh/openshift"
         mode: 0600
 
     # Copy the public key so this server.
     - name: Copying the public key to the system
       copy:
         src: "{{ ansible_public_key_file }}"
-        dest: "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
+        dest: "{{ ansible_user_dir }}/.ssh/openshift.pub"
         mode: 0644
 
     # Copy the rc file so the host can talk to OpenStack.
@@ -123,44 +133,76 @@
         dest: "{{ ansible_user_dir }}/keystonerc"
         src: "{{ openstack_rc }}"
 
-    # Check for the existance of the OpenStack client.
-    - name: Checking for the OpenStack client
-      stat:
-        path: "{{ openstack_location }}"
-      register: openstack_path
+    # Add an authentication block to the end of the OSEv3 file.
+    - name: Adding authentication information to the end of the OSEv3.yml file
+      blockinfile:
+        backup: yes
+        block: "{{ lookup('file', 'templates/auth_block.yml') }}"
+        insertafter: EOF
+        path: inventory/group_vars/OSEv3.yml
 
-    # Fail when the openstack client path does not exist.
-    - name: Aborting because the OpenStack client does not exist
-      fail:
-        msg: "The openstack client path '{{ openstack_location }}' is invalid."
-      when: openstack_path.stat.exists == false
+    # Set the env_id value by replacing the line.
+    - name: Setting env_id to {{ env_id }} in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^env_id.*"
+        line: "env_id: \"{{ env_id }}\""
 
-    # The openstack variable includes the rc file and the path to the OpenStack client.
-    - name: Setting openstack variable to source the rc file and contain path to client
-      set_fact:
-        openstack: "source {{ ansible_user_dir }}/keystonerc; {{ openstack_location }}"
+    # Get the public_dns_nameservers value from the Ansible variable.
+    - name: Setting the public_dns_nameservers in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^public_dns_nameservers.*"
+        line: "public_dns_nameservers: [{{ public_dns_nameservers | default('8.8.8.8', true) }}]"
 
-    # Get the public DNS servers from OpenStack.
-    - name: Getting the public DNS servers from OpenStack
-      shell: "{{ openstack }} subnet show {{ public_subnet_name }} --format value -c dns_nameservers"
-      register: dns_servers
+    # Set the Nova keypair for the installer to use.
+    - name: Setting openstack_ssh_public_key to {{ keypair_name }} in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^openstack_ssh_public_key.*"
+        line: "openstack_ssh_public_key: \"{{ keypair_name }}\""
 
-    # Format the output from the command to a csv list.
-    - name: Creating a variable with comma separated list of DNS servers
-      set_fact:
-        public_dns_nameservers: "{{ dns_servers.stdout }}"
+    # Set the external (public) network name.
+    - name: Setting openstack_external_network_name to {{ public_network_name }} in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^openstack_external_network_name.*"
+        line: "openstack_external_network_name: \"{{ public_network_name }}\""
 
-    # Render the all.yml template, replacing variables with current values.
-    - name: Rendering the all.yml template
-      template:
-        src: templates/all.yml.j2
-        dest: inventory/group_vars/all.yml
+    # Set the default image name.
+    - name: Setting openstack_default_image_name to {{ image_name }} in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^openstack_default_image_name.*"
+        line: "openstack_default_image_name: \"{{ image_name }}\""
 
-    # Copy the OSEv3.yml file, replacing the existing OSEv3.yml file.
-    - name: Copying the OSEv3.yml template
-      copy:
-        src: templates/OSEv3.yml
-        dest: inventory/group_vars/OSEv3.yml
+    # Set the number of masters.
+    - name: Setting openstack_num_masters to 3 in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^openstack_num_masters.*"
+        line: "openstack_num_masters: 3"
+
+    # Set the number of infrastructure systems.
+    - name: Setting openstack_num_infra to 3 in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^openstack_num_infra.*"
+        line: "openstack_num_infra: 3"
+
+    # Set the absolute path to the private key.
+    - name: Setting openstack_private_ssh_key in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^#openstack_private_ssh_key.*"
+        line: "openstack_private_ssh_key: {{ ansible_user_dir }}/.ssh/openshift"
+
+    # Do not use Cinder volumes. TODO: Remove this once Cinder is working.
+    - name: Setting ephemeral_volumes to true in all.yml
+      lineinfile:
+        path: inventory/group_vars/all.yml
+        regexp: "^# ephemeral_volumes.*"
+        line: "ephemeral_volumes: true"
 
     # Set a variable for the ansible-playbook.
     - name: Setting ansible-playbook variable
@@ -169,14 +211,14 @@
 
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
-      shell: "{{ ansible_playbook }} {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
+      shell: "{{ ansible_playbook }} -vv {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
 
     # Run the Ansible playbook that installs OpenShift.
     - name: Running the OpenShift install
-      shell: "{{ ansible_playbook }} openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
+      shell: "{{ ansible_playbook }} -vv openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash

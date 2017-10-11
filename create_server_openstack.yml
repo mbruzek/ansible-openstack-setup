@@ -257,6 +257,8 @@
         ansible_user: cloud-user
         # Adding a ProxyCommand allows servers to contact this IP using the openstack-server.
         ansible_ssh_common_args: "-o ProxyCommand='{{ proxy_command }}'"
+        # Adding the DNS nameserver list that was pulled from an OpenStack subnet command.
+        public_dns_nameservers: "{{ dns_nameservers['stdout'] }}"
 
     # Print out the line to add to inventory.
     - name: Printing the target host added to the inventory
