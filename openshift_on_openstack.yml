@@ -3,7 +3,7 @@
   hosts: target-host
   vars:
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
-    image_name: "{{ lookup('env', 'image_name') | default('centos-7') }}"
+    image_name: "{{ lookup('env', 'image_name') | default('ocp-3.7-rhel') }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     # The openshift-ansible repository to use if the code is not already on the host.
     openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') | default('https://github.com/openshift/openshift-ansible', true) }}"
