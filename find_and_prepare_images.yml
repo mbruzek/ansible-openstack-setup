@@ -50,7 +50,8 @@
         rhel_image: "{{ (rhel_images['files']|sort(attribute='mtime',reverse=true)|first)['path'] }}"
       when: rhel_image == ""
 
-    - name: Creating the files variable from the latest atomic and rhel images
+    # Create a list of the files to convert, transfer, and upload.
+    - name: Creating the list of files from the atomic and rhel images
       set_fact:
         files: "{{ [ atomic_image, rhel_image ] }}"
 
