@@ -2,8 +2,25 @@
 - name: Configure openshift-ansible-contrib to run in this OpenStack environment
   hosts: target-host
   vars:
+    # A list of regular expressions in all.yml and the replacement values.
+    all_yml:
+      - { find: "^env_id.*", replace: "env_id: \"{{ env_id }}\"" }
+      - { find: "^public_dns_nameservers.*", replace: "public_dns_nameservers: [{{ public_dns_nameservers }}]" }
+      - { find: "^openstack_ssh_public_key.*", replace: "openstack_ssh_public_key: \"{{ keypair_name }}\"" }
+      - { find: "^openstack_external_network_name.*", replace: "openstack_external_network_name: \"{{ public_network_name }}\"" }
+      - { find: "^openstack_default_image_name.*", replace: "openstack_defult_image_name: \"{{ default_image_name }}\"" }
+      - { find: "^openstack_num_masters.*", replace: "openstack_num_masters: 3" }
+      - { find: "^openstack_num_infra.*", replace: "openstack_num_infra: 3" }
+      - { find: "^#openstack_master_flavor.*", replace: "openstack_master_flavor: \"master_etcd\"" }
+      - { find: "^#openstack_infra_flavor.*", replace: "openstack_infra_flavor: \"load_balancer\"" }
+      - { find: "^#openstack_node_flavor.*", replace: "openstack_node_flavor: \"node_small\"" }
+      - { find: "^#openstack_lb_flavor.*", replace: "openstack_lb_flavor: \"load_balancer\"" }
+      - { find: "^openstack_default_flavor.*", replace: "openstack_default_flavor: \"m1.medium\"" }
+      - { find: "^#openstack_private_ssh_key.*", replace: "openstack_private_ssh_key: ~/.ssh/openstack"}
+      # Do not use Cinder volumes. TODO: Remove this once Cinder is working.
+      - { find: "^# ephemeral_volumes.*", replace: "ephemeral_volumes: true"}
+    default_image_name: "{{ lookup('env', 'default_image_name') | default('ocp-3.7-rhel') }}"
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
-    image_name: "{{ lookup('env', 'image_name') | default('ocp-3.7-rhel') }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     # The openshift-ansible repository to use if the code is not already on the host.
     openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') | default('https://github.com/openshift/openshift-ansible', true) }}"
@@ -141,68 +158,13 @@
         insertafter: EOF
         path: inventory/group_vars/OSEv3.yml
 
-    # Set the env_id value by replacing the line.
-    - name: Setting env_id to {{ env_id }} in all.yml
+    # For each item in the list, search for regular expressions and replace.
+    - name: Changing the desired lines in inventory/group_vars/all.yml
       lineinfile:
         path: inventory/group_vars/all.yml
-        regexp: "^env_id.*"
-        line: "env_id: \"{{ env_id }}\""
-
-    # Get the public_dns_nameservers value from the Ansible variable.
-    - name: Setting the public_dns_nameservers in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^public_dns_nameservers.*"
-        line: "public_dns_nameservers: [{{ public_dns_nameservers | default('8.8.8.8', true) }}]"
-
-    # Set the Nova keypair for the installer to use.
-    - name: Setting openstack_ssh_public_key to {{ keypair_name }} in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^openstack_ssh_public_key.*"
-        line: "openstack_ssh_public_key: \"{{ keypair_name }}\""
-
-    # Set the external (public) network name.
-    - name: Setting openstack_external_network_name to {{ public_network_name }} in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^openstack_external_network_name.*"
-        line: "openstack_external_network_name: \"{{ public_network_name }}\""
-
-    # Set the default image name.
-    - name: Setting openstack_default_image_name to {{ image_name }} in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^openstack_default_image_name.*"
-        line: "openstack_default_image_name: \"{{ image_name }}\""
-
-    # Set the number of masters.
-    - name: Setting openstack_num_masters to 3 in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^openstack_num_masters.*"
-        line: "openstack_num_masters: 3"
-
-    # Set the number of infrastructure systems.
-    - name: Setting openstack_num_infra to 3 in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^openstack_num_infra.*"
-        line: "openstack_num_infra: 3"
-
-    # Set the absolute path to the private key.
-    - name: Setting openstack_private_ssh_key in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^#openstack_private_ssh_key.*"
-        line: "openstack_private_ssh_key: {{ ansible_user_dir }}/.ssh/openshift"
-
-    # Do not use Cinder volumes. TODO: Remove this once Cinder is working.
-    - name: Setting ephemeral_volumes to true in all.yml
-      lineinfile:
-        path: inventory/group_vars/all.yml
-        regexp: "^# ephemeral_volumes.*"
-        line: "ephemeral_volumes: true"
+        regexp: "{{ item['find'] }}"
+        line: "{{ item['replace'] }}"
+      with_items: "{{ all_yml }}"
 
     # Set a variable for the ansible-playbook.
     - name: Setting ansible-playbook variable
