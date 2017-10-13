@@ -8,7 +8,7 @@
       - { find: "^public_dns_nameservers.*", replace: "public_dns_nameservers: [{{ public_dns_nameservers }}]" }
       - { find: "^openstack_ssh_public_key.*", replace: "openstack_ssh_public_key: \"{{ keypair_name }}\"" }
       - { find: "^openstack_external_network_name.*", replace: "openstack_external_network_name: \"{{ public_network_name }}\"" }
-      - { find: "^openstack_default_image_name.*", replace: "openstack_defult_image_name: \"{{ default_image_name }}\"" }
+      - { find: "^openstack_default_image_name.*", replace: "openstack_default_image_name: \"{{ default_image_name }}\"" }
       - { find: "^openstack_num_masters.*", replace: "openstack_num_masters: 3" }
       - { find: "^openstack_num_infra.*", replace: "openstack_num_infra: 3" }
       - { find: "^#openstack_master_flavor.*", replace: "openstack_master_flavor: \"master_etcd\"" }
@@ -16,10 +16,10 @@
       - { find: "^#openstack_node_flavor.*", replace: "openstack_node_flavor: \"node_small\"" }
       - { find: "^#openstack_lb_flavor.*", replace: "openstack_lb_flavor: \"load_balancer\"" }
       - { find: "^openstack_default_flavor.*", replace: "openstack_default_flavor: \"m1.medium\"" }
-      - { find: "^#openstack_private_ssh_key.*", replace: "openstack_private_ssh_key: ~/.ssh/openstack"}
+      - { find: "^#openstack_private_ssh_key.*", replace: "openstack_private_ssh_key: ~/.ssh/id_rsa"}
       # Do not use Cinder volumes. TODO: Remove this once Cinder is working.
       - { find: "^# ephemeral_volumes.*", replace: "ephemeral_volumes: true"}
-    default_image_name: "{{ lookup('env', 'default_image_name') | default('ocp-3.7-rhel') }}"
+    default_image_name: "{{ lookup('env', 'default_image_name') | default('ocp-3.7-rhel', true) }}"
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     # The openshift-ansible repository to use if the code is not already on the host.
@@ -135,14 +135,14 @@
     - name: Copying the private key to the system
       copy:
         src: "{{ ansible_private_key_file }}"
-        dest: "{{ ansible_user_dir }}/.ssh/openshift"
+        dest: "{{ ansible_user_dir }}/.ssh/id_rsa"
         mode: 0600
 
     # Copy the public key so this server.
     - name: Copying the public key to the system
       copy:
         src: "{{ ansible_public_key_file }}"
-        dest: "{{ ansible_user_dir }}/.ssh/openshift.pub"
+        dest: "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
         mode: 0644
 
     # Copy the OpenStack rc file from the Ansible host to the target host.
@@ -172,16 +172,33 @@
       set_fact:
         ansible_playbook: "source {{ openstack_rc }}; ansible-playbook"
 
+    # Get some debug information that makes it easier to file bugs.
+    - name: Running commands that return debug information needed to open issues
+      shell: "{{ item }}"
+      register: debug_information
+      with_items:
+        - "printf \"$(uname -srm)\n$(cat /etc/os-release)\n\""
+        - "ansible --version"
+        - "pip freeze | grep -i jinja"
+        - "pip freeze | grep -i shade"
+        - "cd openshift-ansible-contrib/ ; git rev-parse --short HEAD"
+
+    # Print the debug information out.
+    - name: Printing the debug information to the screen
+      debug:
+        msg: "{{ item['stdout_lines'] }}"
+      with_items: "{{ debug_information['results'] }}"
+
     # Run the Ansible playbook that installs OpenStack.
     - name: Running the OpenStack install
-      shell: "{{ ansible_playbook }} -vv {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
+      shell: "{{ ansible_playbook }} -vvv {{ openshift_openstack_dir }}/provision.yaml 2>&1 > openstack_provision_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
 
     # Run the Ansible playbook that installs OpenShift.
     - name: Running the OpenShift install
-      shell: "{{ ansible_playbook }} -vv openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
+      shell: "{{ ansible_playbook }} -vvv openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
