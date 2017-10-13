@@ -12,13 +12,14 @@
       - { find: "^openstack_num_masters.*", replace: "openstack_num_masters: 3" }
       - { find: "^openstack_num_infra.*", replace: "openstack_num_infra: 3" }
       - { find: "^#openstack_master_flavor.*", replace: "openstack_master_flavor: \"master_etcd\"" }
-      - { find: "^#openstack_infra_flavor.*", replace: "openstack_infra_flavor: \"load_balancer\"" }
+      - { find: "^#openstack_infra_flavor.*", replace: "openstack_infra_flavor: \"infra_elastic\"" }
       - { find: "^#openstack_node_flavor.*", replace: "openstack_node_flavor: \"node_small\"" }
       - { find: "^#openstack_lb_flavor.*", replace: "openstack_lb_flavor: \"load_balancer\"" }
       - { find: "^openstack_default_flavor.*", replace: "openstack_default_flavor: \"m1.medium\"" }
       - { find: "^#openstack_private_ssh_key.*", replace: "openstack_private_ssh_key: ~/.ssh/id_rsa"}
       # Do not use Cinder volumes. TODO: Remove this once Cinder is working.
       - { find: "^# ephemeral_volumes.*", replace: "ephemeral_volumes: true"}
+      - { find: "^#ephemeral_volumes.*", replace: "ephemeral_volumes: true"}
     default_image_name: "{{ lookup('env', 'default_image_name') | default('ocp-3.7-rhel', true) }}"
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
@@ -125,28 +126,28 @@
         state: absent
 
     # Create a .ssh directory if one does not already exist.
-    - name: Creating the .ssh directory
+    - name: Creating the {{ ansible_user_dir }}/.ssh directory on the target host
       file:
         path: "{{ ansible_user_dir }}/.ssh"
         state: directory
         mode: 0700
 
     # Copy the private key so this server can access the OpenShift servers.
-    - name: Copying the private key to the system
+    - name: Copying the private key to the target host
       copy:
         src: "{{ ansible_private_key_file }}"
         dest: "{{ ansible_user_dir }}/.ssh/id_rsa"
         mode: 0600
 
     # Copy the public key so this server.
-    - name: Copying the public key to the system
+    - name: Copying the public key to the target host
       copy:
         src: "{{ ansible_public_key_file }}"
         dest: "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
         mode: 0644
 
     # Copy the OpenStack rc file from the Ansible host to the target host.
-    - name: Copying the OpenStack rc file to {{ openstack_rc }}
+    - name: Copying the OpenStack rc file from Ansible host to target host
       copy:
         src: "keystonerc"
         dest: "{{ openstack_rc }}"
@@ -168,12 +169,12 @@
       with_items: "{{ all_yml }}"
 
     # Set a variable for the ansible-playbook.
-    - name: Setting ansible-playbook variable
+    - name: Setting the ansible-playbook variable
       set_fact:
         ansible_playbook: "source {{ openstack_rc }}; ansible-playbook"
 
     # Get some debug information that makes it easier to file bugs.
-    - name: Running commands that return debug information needed to open issues
+    - name: Running commands that create debug information needed to open issues
       shell: "{{ item }}"
       register: debug_information
       with_items:
