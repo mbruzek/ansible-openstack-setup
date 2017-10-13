@@ -73,3 +73,13 @@ to delete the ci_subnet. The message specified further information:
 #### Solution: Delete the test server VM on that subnet.
 Was testing some things with a manually created VM server that used that subnet.
 The delete script does not know about servers not created by the scripts.
+
+### TASK [openstack-stack : Handle the Stack (create/delete)]
+#### Problem: AttributeError: 'bool' object has no attribute 'id'
+The openshift-ansible-contrib provision.yaml playbook encountered an error when
+attempting to create resources. The flavor size was too small for the image.
+The message specified further information:
+`Flavor's disk is too small for requested image. Flavor disk is 34359738368 bytes, image is 54760833024 bytes.`
+#### Solution: Increase the size of the node_small flavor.
+Changed the size of the node_small flavor in create_server_openstack.yml to
+64GB so it can handle the 54GB image.
