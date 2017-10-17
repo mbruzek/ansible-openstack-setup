@@ -223,31 +223,22 @@
       # This command can fail with: Instance network is not ready yet (HTTP 400)
       shell: "{{ openstack }} server add floating ip {{ server_name }} {{ floating_ip_address }}"
       register: add_result
-      until: add_result.rc == 0
+      until: add_result['rc'] == 0
       # Retry 5 times until success.
       retries: 5
       delay: 3
       ignore_errors: yes
-
-    # Use the wait_for module to wait until ssh access can be established.
-    - name: Waiting for the server {{ server_name }} to start
-      wait_for:
-        host: "{{ floating_ip_address }}"
-        port: 22
-        state: started
-        delay: 5
-        timeout: 300
-
-    # Print out the ssh connection command to the new server.
-    - name: Printing the ssh command to connect with the server instance
-      debug:
-        msg: "ssh -i {{ private_key_path }} cloud-user@{{ floating_ip_address }}"
 
     # In some cases the "floating ip" is only accessible from the openstack-server.
     - name: Creating an ssh command that will use the openstack-server as a proxy
       set_fact:
         # The key path must be from the remote host not the openstack-server.
         proxy_command: "ssh -i {{ ansible_private_key_file }} -W %h:%p {{ ansible_user }}@{{ inventory_hostname }}"
+
+    # Print out the ProxyCommand to the new server through the openstack-server.
+    - name: Printing the ProxyCommand to connect with the server instance
+      debug:
+        msg: "-o ProxyCommand='{{ proxy_command }}'"
 
     # Add the new host to the in-memory inventory.
     - name: Adding the newly generated floating IP address to the inventory
@@ -264,3 +255,17 @@
     - name: Printing the target host added to the inventory
       debug:
         msg: "[target-host]\n{{ floating_ip_address }} ansible_user=cloud-user"
+
+    # Use the wait_for module to wait until ssh access can be established.
+    - name: Waiting for the server {{ server_name }} to start
+      wait_for:
+        host: "{{ floating_ip_address }}"
+        port: 22
+        state: started
+        delay: 5
+        timeout: 300
+
+    # Print out the ssh connection command to the new server.
+    - name: Printing the ssh command to connect with the server instance
+      debug:
+        msg: "ssh -i {{ private_key_path }} cloud-user@{{ floating_ip_address }}"

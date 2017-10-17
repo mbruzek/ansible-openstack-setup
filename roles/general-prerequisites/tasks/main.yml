@@ -3,7 +3,12 @@
 - name: Bootstrapping Python on this system
   become: true
   # Use the raw module to ensure that python2 in installed on this system.
-  raw: yum --assumeyes --debuglevel 1 --errorlevel 1 install python
+  raw: yum --assumeyes install python
+  register: install_python_result
+  until: install_python_result['rc'] == 0
+  retries: 3
+  delay: 2
+  ignore_errors: yes
 
 # With python2 installed Ansible should be able to gather facts.
 - name: Gathering facts on the target host
@@ -17,6 +22,10 @@
   # Using raw, because the Python yum package may not be installed.
   raw: yum --assumeyes --debuglevel 1 --errorlevel 1 install {{ item }}
   with_items: "{{ packages['common'] }}"
+  register: install_common_result
+  until: install_common_result['rc'] == 0
+  retries: 3
+  delay: 2
 
 # Install operating system specific packages on the host.
 - name: Installing operating system specific software packages
@@ -24,6 +33,10 @@
   # Using raw, because the Python yum package may not be installed.
   raw: yum --assumeyes --debuglevel 1 --errorlevel 1 install {{ item }}
   with_items: "{{ packages[ ansible_distribution ] }}"
+  register: install_specific_result
+  until: install_specific_result['rc'] == 0
+  retries: 3
+  delay: 2
 
 # Create a virtual Python environment.
 - name: Creating a virtual Python environment to install requirements

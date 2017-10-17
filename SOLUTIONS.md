@@ -83,3 +83,13 @@ The message specified further information:
 #### Solution: Increase the size of the node_small flavor.
 Changed the size of the node_small flavor in create_server_openstack.yml to
 64GB so it can handle the 54GB image.
+
+### TASK [general-prerequisites : Bootstrapping Python on this system]
+#### Problem: Failed to connect to the host via ssh: Connection timed out
+The install_server_dependencies.yml playbook stopped on the first task of the
+general-prerequisites role with a connection timed out error.
+`Failed to connect to the host via ssh: Connection timed out during banner exchange`
+`unreachable`
+#### Solution: Add a retry in the general-prerequisites tasks.
+The connection timeout commands could be a network problem change the script
+to retry the raw commands on the new server.
