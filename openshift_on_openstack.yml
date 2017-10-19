@@ -18,7 +18,6 @@
       - { find: "^openstack_default_flavor.*", replace: "openstack_default_flavor: \"m1.medium\"" }
       - { find: "^#openstack_private_ssh_key.*", replace: "openstack_private_ssh_key: ~/.ssh/id_rsa"}
       # Do not use Cinder volumes. TODO: Remove this once Cinder is working.
-      - { find: "^# ephemeral_volumes.*", replace: "ephemeral_volumes: true"}
       - { find: "^#ephemeral_volumes.*", replace: "ephemeral_volumes: true"}
     default_image_name: "{{ lookup('env', 'default_image_name') | default('ocp-3.7-rhel', true) }}"
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
