@@ -111,18 +111,12 @@
       # Note: The copy module does not support recurisve copy of remote sources.
       command: cp -r {{ openshift_openstack_dir }}/sample-inventory/ inventory
 
-    # Copy the Ansible configuration file from the inventory directory.
-    - name: Copying the Ansible configuration file from inventory
+    # Copy the Ansible configuration file from openshift_openstack_dir.
+    - name: Copying the Ansible configuration file from {{ openshift_openstack_dir }}
       copy:
         remote_src: true
-        src: inventory/ansible.cfg
+        src: "{{ openshift_openstack_dir }}/ansible.cfg"
         dest: ./ansible.cfg
-
-    # Remove the ansible.cfg file.
-    - name: Removing the Ansible configuration file
-      file:
-        path: inventory/ansible.cfg
-        state: absent
 
     # Create a .ssh directory if one does not already exist.
     - name: Creating the {{ ansible_user_dir }}/.ssh directory on the target host

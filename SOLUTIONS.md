@@ -93,3 +93,14 @@ general-prerequisites role with a connection timed out error.
 #### Solution: Add a retry in the general-prerequisites tasks.
 The connection timeout commands could be a network problem change the script
 to retry the raw commands on the new server.
+
+### TASK [Copying the Ansible configuration file from inventory]
+#### Problem: The openshift-ansible-contrib repo changed location of ansible.cfg
+One of the last changes in the openshift-ansible-contrib repository updated
+the README.md and in an effort to streamline the experience removed the
+configuration file from the sample-inventory directory which is copied to
+inventory. Also remove the task that deletes that file.
+`Source inventory/ansible.cfg not found`
+#### Solution: Make openshift_on_openstack.yml playbook look for the new location.
+The ansible.cfg file can be found in `openshift-ansible-contrib/playbooks/provisioning/openstack`
+directory from now on. 
