@@ -103,4 +103,13 @@ inventory. Also remove the task that deletes that file.
 `Source inventory/ansible.cfg not found`
 #### Solution: Make openshift_on_openstack.yml playbook look for the new location.
 The ansible.cfg file can be found in `openshift-ansible-contrib/playbooks/provisioning/openstack`
-directory from now on. 
+directory from now on.
+
+### TASK [infra-ansible/roles/dns-server : Configure SELinux]
+#### Problem: This module requires libsemanage-python support
+The [infra-ansible](https://github.com/redhat-cop/infra-ansible) repository
+"Configure SELinux" task uses the seboolean Ansible module, and it fails. The
+earlier task installs the module. There were no errors from the install task.
+#### Solution: Install the 'libsemanage-python' on the Ansible host.
+Updated the common OS packages in the general-prerequisites role to install
+libsemanage-python package in the future.
