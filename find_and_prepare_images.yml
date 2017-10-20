@@ -148,16 +148,16 @@
       with_items: "{{ files }}"
       register: qcow2_files
 
-    # Create the image directories on the target host.
-    - name: Creating the image directories on the target host
+    # Create the image directories on the remote host.
+    - name: "Creating the image directories on {{ remote_host }}"
       file:
         path: "{{ remote_image_directory }}/{{ item|dirname }}"
         state: directory
       with_items: "{{ files }}"
       delegate_to: "{{ remote_host }}"
 
-    # Copy the images from image server to the target host.
-    - name: Copying the files from the image server to the target host
+    # Copy the images from image server to the remote host.
+    - name: "Copying the files from the image server to {{ remote_host }}"
       get_url:
         checksum: "sha256:{{ item[1]['stat']['checksum'] }}"
         dest: "{{ remote_image_directory }}/{{ (item[0]|splitext)[0] }}.qcow2"
