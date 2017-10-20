@@ -77,7 +77,7 @@
     - name: Cloning the openshift-ansible repository
       git:
         dest: "{{ ansible_user_dir }}/openshift-ansible"
-        # Specify a different repo to test someone else's repository.
+        # Specify the repo as a variable to test other people's repositories.
         repo: "{{ openshift_ansible_repo }}"
         # Specify a version for a different branch, tag, or hash to verify PRs.
         version: "{{ openshift_ansible_version }}"
@@ -92,7 +92,7 @@
     - name: Cloning the openshift-ansible-contrib repository
       git:
         dest: "{{ ansible_user_dir }}/openshift-ansible-contrib"
-        # Specify a different repo to test someone else's repository.
+        # Specify the repo as a variable to test other people's repositories.
         repo: "{{ openshift_ansible_contrib_repo }}"
         # Specify a version for a different branch, tag, or hash to verify PRs.
         version: "{{ openshift_ansible_contrib_version }}"
@@ -160,6 +160,18 @@
         regexp: "{{ item['find'] }}"
         line: "{{ item['replace'] }}"
       with_items: "{{ all_yml }}"
+
+    # TODO: Remove this patch when they fix the bug.
+    - name: Patching the files to fix the semanage bug
+      lineinfile:
+        path: "{{ item }}"
+        regexp: "  - libsemanage-python"
+        line: "  - libsemanage-devel"
+      with_items:
+        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dhcp/tasks/prereq.yml"
+        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dns-server/tasks/prereq.yml"
+        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/haproxy/tasks/prereq.yml"
+        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/keepalived/tasks/prereq.yml"
 
     # Set a variable for the ansible-playbook.
     - name: Setting the ansible-playbook variable
