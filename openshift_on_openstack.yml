@@ -162,16 +162,16 @@
       with_items: "{{ all_yml }}"
 
     # TODO: Remove this patch when they fix the bug.
-    - name: Patching the files to fix the semanage bug
-      lineinfile:
-        path: "{{ item }}"
-        regexp: "  - libsemanage-python"
-        line: "  - libsemanage-devel"
-      with_items:
-        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dhcp/tasks/prereq.yml"
-        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dns-server/tasks/prereq.yml"
-        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/haproxy/tasks/prereq.yml"
-        - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/keepalived/tasks/prereq.yml"
+    # - name: Patching the files to fix the semanage bug
+    #   lineinfile:
+    #     path: "{{ item }}"
+    #     regexp: "  - libsemanage-python"
+    #     line: "  - libsemanage-devel"
+    #   with_items:
+    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dhcp/tasks/prereq.yml"
+    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dns-server/tasks/prereq.yml"
+    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/haproxy/tasks/prereq.yml"
+    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/keepalived/tasks/prereq.yml"
 
     # Set a variable for the ansible-playbook.
     - name: Setting the ansible-playbook variable
