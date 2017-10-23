@@ -5,7 +5,7 @@ packages:
     - gcc
     - git
     - libselinux-python
-    # - libsemanage-devel
+    - python2-crypto
     - redhat-rpm-config
     - sshpass
   Fedora:

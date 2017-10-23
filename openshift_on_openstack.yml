@@ -17,6 +17,7 @@
       - { find: "^#openstack_lb_flavor.*", replace: "openstack_lb_flavor: \"load_balancer\"" }
       - { find: "^openstack_default_flavor.*", replace: "openstack_default_flavor: \"m1.medium\"" }
       - { find: "^#openstack_private_ssh_key.*", replace: "openstack_private_ssh_key: ~/.ssh/id_rsa"}
+      - { find: "^#manage_packages.*", replace: "manage_packages: false"}
       # Do not use Cinder volumes. TODO: Remove this once Cinder is working.
       - { find: "^#ephemeral_volumes.*", replace: "ephemeral_volumes: true"}
     default_image_name: "{{ lookup('env', 'default_image_name') | default('ocp-3.7-rhel', true) }}"
@@ -160,18 +161,6 @@
         regexp: "{{ item['find'] }}"
         line: "{{ item['replace'] }}"
       with_items: "{{ all_yml }}"
-
-    # TODO: Remove this patch when they fix the bug.
-    # - name: Patching the files to fix the semanage bug
-    #   lineinfile:
-    #     path: "{{ item }}"
-    #     regexp: "  - libsemanage-python"
-    #     line: "  - libsemanage-devel"
-    #   with_items:
-    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dhcp/tasks/prereq.yml"
-    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/dns-server/tasks/prereq.yml"
-    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/haproxy/tasks/prereq.yml"
-    #     - "{{ ansible_user_dir }}/openshift-ansible-contrib/roles/infra-ansible/roles/keepalived/tasks/prereq.yml"
 
     # Set a variable for the ansible-playbook.
     - name: Setting the ansible-playbook variable
