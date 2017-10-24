@@ -3,7 +3,7 @@
 - name: Bootstrapping Python on this system
   become: true
   # Use the raw module to ensure that python2 in installed on this system.
-  raw: yum --assumeyes install python
+  raw: yum --assumeyes --debuglevel 1 --errorlevel 1 install python
   register: install_python_result
   until: install_python_result['rc'] == 0
   retries: 3
@@ -53,5 +53,5 @@
 - name: Installing the Python packages
   become: "{{ virtualenv_directory is not defined }}"
   # Using shell module because the Ansible pip module may not be installed.
-  shell: "{{ pip }} install --quiet {{ item }}"
+  shell: "{{ pip }} install {{ item }}"
   with_items: "{{ packages['python'] }}"
