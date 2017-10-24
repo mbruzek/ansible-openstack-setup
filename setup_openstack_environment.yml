@@ -1,8 +1,6 @@
 ---
 - name: The steps to run the scale-ci automation
-  # Ensure the Ansible control machine can access the OpenStack network.
   hosts: localhost
-  gather_facts: false
 
 # import_playbook to find the prepare the images on the image-server.
 - include: find_and_prepare_images.yml

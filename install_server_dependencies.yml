@@ -1,7 +1,9 @@
 ---
-- name: The general prerequisites to install OpenShift using Ansible.
+- name: The general prerequisites to install OpenShift using Ansible
   hosts: target-host
   # Can not gather facts from hosts without Python installed.
   gather_facts: false
+
   roles:
+    # Install the general prerequisistes for OpenStack and Ansible.
     - general-prerequisites

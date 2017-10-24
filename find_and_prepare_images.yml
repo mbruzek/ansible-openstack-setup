@@ -1,5 +1,5 @@
 ---
-- name: Find and prepare the images to copy
+- name: Find and prepare the images, copy images to the remote host
   hosts: image-server
   vars:
     # A string path relative to the user's home directory to the atomic image.

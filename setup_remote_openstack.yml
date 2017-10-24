@@ -4,6 +4,7 @@
   vars:
     install_directory: "{{ ansible_user_dir }}/scale-ci"
     virtualenv_directory: "{{ install_directory }}/virtualenv"
+
   pre_tasks:
     # Delete any existing code before the role installs the prerequisites.
     - name: Deleting any existing code on the openstack-server
@@ -13,8 +14,11 @@
       with_items:
         - "{{ install_directory }}"
         - "{{ ansible_user_dir }}/.ssh/known_hosts"
+
   roles:
+    # Install general prerequisites for OpenStack and Ansible.
     - general-prerequisites
+
   tasks:
     # Copy the public key so it can be used to create the OpenStack keypair.
     - name: Copying the public key to openstack-server
