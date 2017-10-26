@@ -143,7 +143,7 @@
     # Copy the OpenStack rc file from the Ansible host to the target host.
     - name: Copying the OpenStack rc file from Ansible host to target host
       copy:
-        src: "keystonerc"
+        src: "openstackrc"
         dest: "{{ openstack_rc }}"
 
     # Add an authentication block to the end of the OSEv3 file.
