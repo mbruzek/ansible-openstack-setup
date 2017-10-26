@@ -11,16 +11,13 @@
     image_directory: image_builder/qcow_images
     ocp_major_minor: "{{ lookup('env', 'ocp_major_minor') | default('3.7', true) }}"
     openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(install_directory ~ '/virtualenv/bin/openstack', true) }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(install_directory ~ '/overcloudrc', true) }}"
     # A string path relative to the user's home directory to the rhel image.
     rhel_image: "{{ lookup('env', 'rhel_image') }}"
     virtualenv_directory: "{{ install_directory }}/virtualenv"
     web_root: /var/www/html
-
   roles:
-    # Install general prerequisites for OpenStack and Ansible.
-    - general-prerequisites
-
+    # Install the OpenStack client on this server.
+    - "openstack-client"
   tasks:
     # Get all the atomic files matching the pattern.
     - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/atomic
@@ -147,13 +144,13 @@
     # Copy the rc file to the image server.
     - name: Copying the OpenStack rc file to the image server
       copy:
-        src: "openstackrc"
-        dest: "{{ openstack_rc }}"
+        src: "{{ playbook_dir }}/openstackrc"
+        dest: "{{ install_directory }}/openstackrc"
 
     # The openstack variable includes the rc file and the path to the OpenStack client.
     - name: Setting openstack variable to source the rc file and contain path to client
       set_fact:
-        openstack: "source {{ openstack_rc }}; {{ openstack_location }}"
+        openstack: "source {{ install_directory }}/openstackrc; {{ openstack_location }}"
 
     # Delete any images with the same name as the one we are about to upload.
     - name: Deleting the existing images in OpenStack
@@ -176,5 +173,5 @@
 
     # Add metadata to the OpenStack about the image.
     - name: Adding metadata about the image
-      shell: "{{ openstack }} image set --property file_name={{ item|basename }} --property directory={{ item|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item['path'])|ternary('atomic','rhel') }}"
+      shell: "{{ openstack }} image set --property file_name={{ item|basename }} --property directory={{ item|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item)|ternary('atomic','rhel') }}"
       with_items: "{{ files }}"
