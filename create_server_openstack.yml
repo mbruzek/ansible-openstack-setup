@@ -24,7 +24,7 @@
       - { name: node_average, vcpu: 4, memory: 16384, disk: 80 }
     openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(playbook_dir ~ '/virtualenv/bin/openstack', true) }}"
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_user_dir ~ '/overcloudrc', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(playbook_dir ~ '/openstackrc', true) }}"
     private_key_path: "{{ lookup('env', 'private_key_path') | default(ansible_private_key_file, true) }}"
     public_key_path: "{{ lookup('env', 'public_key_path') | default(ansible_public_key_file, true) }}"
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
@@ -33,7 +33,7 @@
         { cores: 1444, gigabytes: 50000, instances: 550, ports: 10000, ram: 5865472, volumes: 50000 }
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
     security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
-    server_flavor: "{{ lookup('env', 'server_flavor') | default('m1.medium', true) }}"
+    server_flavor: "{{ lookup('env', 'server_flavor') | default('node_small', true) }}"
     server_image: "{{ lookup('env', 'server_image') | default('ocp-3.7-rhel', true) }}"
     server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
     subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"

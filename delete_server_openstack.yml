@@ -1,6 +1,6 @@
 ---
 - name: Steps to clean up an OpenStack environment
-  hosts: openstack-server
+  hosts: localhost
   vars:
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
