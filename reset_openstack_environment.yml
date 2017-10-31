@@ -3,9 +3,8 @@
   hosts: openstack-server
   vars:
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
-    install_directory: "{{ ansible_user_dir }}/scale-ci"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(install_directory ~ '/virtualenv/bin/openstack', true) }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default('~/overcloudrc', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(('/usr/bin/openstack', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(playbook_dir ~ '/overcloudrc', true) }}"
 
   tasks:
     # Check for the existance of the OpenStack client.
@@ -30,7 +29,7 @@
       shell: "{{ openstack }} stack list --format value -c ID"
       register: stacks
 
-    # The openshift installer uses a stack, try deleting that first.
+    # The OpenShift installer uses a stack, try deleting that first.
     - name: Deleting the all the stacks
       shell: "{{ openstack }} stack delete --yes --wait {{ item }}"
       with_items: "{{ stacks.stdout_lines }}"

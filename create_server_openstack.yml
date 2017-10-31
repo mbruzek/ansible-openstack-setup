@@ -16,6 +16,7 @@
     install_directory: "{{ ansible_user_dir }}/scale-ci"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
+    ocp_major_minor: "{{ lookup('env', 'ocp_major_minor') | default('3.7', true) }}"
     openshift_flavors:
       - { name: container_storage, vcpu: 16, memory: 65536, disk: 128 }
       - { name: load_balancer, vcpu: 4, memory: 16384, disk: 128 }
@@ -23,7 +24,7 @@
       - { name: master_etcd, vcpu: 64, memory: 245760, disk: 512 }
       - { name: node_small, vcpu: 1, memory: 2048, disk: 80 }
       - { name: node_average, vcpu: 4, memory: 16384, disk: 80 }
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(install_directory ~ '/virtualenv/bin/openstack', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('/usr/bin/openstack', true) }}"
     openstack_project: "{{ lookup('env', 'OS_PROJECT_NAME') }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_user_dir ~ '/overcloudrc', true) }}"
     private_key_path: "{{ lookup('env', 'private_key_path') | default(install_directory ~ '/key.private', true) }}"
@@ -34,7 +35,7 @@
         { cores: 1444, gigabytes: 50000, instances: 550, ports: 10000, ram: 5865472, volumes: 50000 }
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
     security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
-    server_flavor: "{{ lookup('env', 'server_flavor') | default('m1.medium', true) }}"
+    server_flavor: "{{ lookup('env', 'server_flavor') | default('node_small', true) }}"
     server_image: "{{ lookup('env', 'server_image') | default('ocp-3.7-rhel', true) }}"
     server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"
     subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
@@ -48,7 +49,6 @@
       - { name: n1-standard-16, vcpu: 16, memory: 60000, disk: 128 }
       - { name: n1-standard-32, vcpu: 32, memory: 120000, disk: 256 }
       - { name: n1-standard-64, vcpu: 64, memory: 240000, disk: 256 }
-
   tasks:
     # Check for the existance of the OpenStack client.
     - name: Checking for the OpenStack client
@@ -172,6 +172,38 @@
         - volumes
       # Only set quotas when the project is defined.
       when: openstack_project != ""
+
+    # Find the images to upload.
+    - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ install_directory }}
+      find:
+        paths: "{{ install_directory }}"
+        patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+qcow2"
+        use_regex: yes
+        recurse: true
+      register: images
+
+    # Delete any images with the same name as the one we are about to upload.
+    - name: Deleting the existing images in OpenStack
+      shell: "{{ openstack }} image delete ocp-{{ ocp_major_minor }}-{{ item }}"
+      with_items: "{{ [ 'atomic', 'rhel' ] }}"
+      # Do not fail if here is no image to delete.
+      ignore_errors: true
+
+    # Upload the images to Glance.
+    - name: Uploading the images to OpenStack
+      shell: "{{ openstack }} image create --disk-format qcow2 --container-format bare --file {{ item['path'] }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item['path'])|ternary('atomic','rhel') }} --format value -c id"
+      with_items: "{{ images['files'] }}"
+      register: create_result
+      # Retry up to 3 times looking for a successful return code.
+      until: create_result['rc'] == 0
+      retries: 3
+      delay: 5
+      ignore_errors: yes
+
+    # Add metadata to the OpenStack about the image.
+    - name: Adding metadata about the image
+      shell: "{{ openstack }} image set --property file_name={{ item['path']|basename }} --property directory={{ item['path']|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item['path'])|ternary('atomic','rhel') }}"
+      with_items: "{{ images['files'] }}"
 
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
