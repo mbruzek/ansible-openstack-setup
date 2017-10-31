@@ -1,11 +1,12 @@
 ---
 - name: Steps to clean up an OpenStack environment
-  hosts: localhost
+  hosts: openstack-server
   vars:
+    install_directory: "{{ ansible_user_dir}}/scale-ci"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
     network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(playbook_dir ~ '/virtualenv/bin/openstack', true) }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(playbook_dir ~ '/openstackrc', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('/usr/bin/openstack', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_user_dir ~ '/overcloudrc', true) }}"
     router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
     security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
     server_name: "{{ lookup('env', 'server_name') | default('ansible-host', true) }}"

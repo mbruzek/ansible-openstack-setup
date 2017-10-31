@@ -1,10 +1,10 @@
 ---
 - name: Steps to clean up an OpenStack environment
-  hosts: localhost
+  hosts: openstack-server
   vars:
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
-    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(playbook_dir ~ '/virtualenv/bin/openstack', true) }}"
-    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(playbook_dir ~ '/openstackrc', true) }}"
+    openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default(('/usr/bin/openstack', true) }}"
+    openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(playbook_dir ~ '/overcloudrc', true) }}"
 
   tasks:
     # Check for the existance of the OpenStack client.
