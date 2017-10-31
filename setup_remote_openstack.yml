@@ -14,11 +14,12 @@
         - "{{ install_directory }}"
         - "{{ ansible_user_dir }}/.ssh/known_hosts"
   tasks:
-    # Create a .ssh directory if one does not already exist.
+    # Create the install directory.
     - name: Creating the {{ install_directory }} directory on the openstack-server
       file:
         path: "{{ install_directory }}"
         state: directory
+        mode: 0700
 
     # Copy the public key so it can be used to create the OpenStack keypair.
     - name: Copying the public key to openstack-server
