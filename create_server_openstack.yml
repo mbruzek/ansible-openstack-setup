@@ -29,7 +29,7 @@
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_user_dir ~ '/overcloudrc', true) }}"
     private_key_path: "{{ lookup('env', 'private_key_path') | default(install_directory ~ '/key.private', true) }}"
     public_key_path: "{{ lookup('env', 'public_key_path') | default(install_directory ~ '/key.public', true) }}"
-    public_network_name: "{{ lookup('env', 'public_network_name') | default('public_network', true) }}"
+    public_network_name: "{{ lookup('env', 'public_network_name') | default('public', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
     quotas:
         { cores: 1444, gigabytes: 50000, instances: 550, ports: 10000, ram: 5865472, volumes: 50000 }
