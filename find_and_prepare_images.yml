@@ -4,7 +4,7 @@
   vars:
     # A string path relative to the user's home directory to the atomic image.
     atomic_image: "{{ lookup('env', 'atomic_image') }}"
-    delete_qcow2_images: true
+    delete_qcow2_images: false
     files: []
     # A string path relative to the user's home directory.
     image_directory: image_builder/qcow_images
