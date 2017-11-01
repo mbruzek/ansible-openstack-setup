@@ -57,14 +57,20 @@
       become: true
       register: openshift_ansible
 
-    # Create a symbolic link to the openshift-ansible directory.
-    - name: Creating a symbolic link to the openshift-ansible directory
+    # Copy the openshift-ansible files to the user's home directory.
+    - name: "Copying the openshift-ansible files to {{ ansible_user_dir }}/openshift-ansible"
+      # Note: The copy module does not support recurisve copy of remote sources.
+      command: "cp -a /root/openshift-ansible/ {{ ansible_user_dir }}/openshift-ansible"
+      become: true
+      when: openshift_ansible['stat']['exists']
+
+    # Change the permissions to be owned by the user.
+    - name: Changing the permission of the openshift-ansible files
       file:
-        src: /root/openshift-ansible
         path: "{{ ansible_user_dir }}/openshift-ansible"
-        state: link
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
+        recurse: yes
       become: true
       when: openshift_ansible['stat']['exists']
 
@@ -110,7 +116,7 @@
     # Copy the remote sample-inventory to another remote directory.
     - name: Copying the sample inventory directory
       # Note: The copy module does not support recurisve copy of remote sources.
-      command: cp -r {{ openshift_openstack_dir }}/sample-inventory/ inventory
+      command: cp -a {{ openshift_openstack_dir }}/sample-inventory/ inventory
 
     # Copy the Ansible configuration file from openshift_openstack_dir.
     - name: Copying the Ansible configuration file from {{ openshift_openstack_dir }}
