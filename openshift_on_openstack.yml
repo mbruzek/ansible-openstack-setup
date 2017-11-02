@@ -2,7 +2,7 @@
 - name: Configure openshift-ansible-contrib to run in this OpenStack environment
   hosts: target-host
   vars:
-    # A list of regular expressions in all.yml and the replacement values.
+    # A list of regular expressions to search and replace in all.yml.
     all_yml:
       - { find: "^env_id.*", replace: "env_id: \"{{ env_id }}\"" }
       - { find: "^public_dns_nameservers.*", replace: "public_dns_nameservers: [{{ public_dns_nameservers }}]" }
@@ -32,6 +32,10 @@
     # This version can be a branch, tag, or hash for testing pull requests.
     openshift_ansible_contrib_version: "{{ lookup('env', 'openshift_ansible_contrib_version') | default('HEAD', true) }}"
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_user_dir ~ '/keystonerc', true) }}"
+    # A list of regular expressions to search and replace in OSEv3.yml.
+    osev3_yml:
+      - { find: "^openshift_deployment_type: origin", replace: "#openshift_deployment_type: origin" }
+      - { find: "^#openshift_deployment_type: openshift-enterprise", replace: "openshift_deployment_type: openshift-enterprise" }
     public_network_name: "{{ lookup('env', 'public_network_name') | default('public', true) }}"
     public_subnet_name: "{{ lookup('env', 'public_subnet_name') | default('public_subnet', true) }}"
 
@@ -152,21 +156,29 @@
         src: "{{ playbook_dir }}/openstackrc"
         dest: "{{ openstack_rc }}"
 
-    # Add an authentication block to the end of the OSEv3 file.
-    - name: Adding authentication information to the end of the OSEv3.yml file
-      blockinfile:
-        backup: yes
-        block: "{{ lookup('file', 'templates/auth_block.yml') }}"
-        insertafter: EOF
-        path: inventory/group_vars/OSEv3.yml
-
     # For each item in the list, search for regular expressions and replace.
-    - name: Changing the desired lines in inventory/group_vars/all.yml
+    - name: Replacing specific lines in inventory/group_vars/all.yml
       lineinfile:
         path: inventory/group_vars/all.yml
         regexp: "{{ item['find'] }}"
         line: "{{ item['replace'] }}"
       with_items: "{{ all_yml }}"
+
+    # For each item in the list, search for regular expressions and replace.
+    - name: Replacing specific lines in inventory/group_vars/OSEv3.yml
+      lineinfile:
+        path: inventory/group_vars/OSEv3.yml
+        regexp: "{{ item['find'] }}"
+        line: "{{ item['replace'] }}"
+      with_items: "{{ osev3_yml }}"
+
+    # Add more configuration to the end of the OSEv3 file.
+    - name: Adding a block of configuration to the end of inventory/group_vars/OSEv3.yml
+      blockinfile:
+        backup: yes
+        block: "{{ lookup('file', 'templates/add_block.yml') }}"
+        insertafter: EOF
+        path: inventory/group_vars/OSEv3.yml
 
     # Set a variable for the ansible-playbook.
     - name: Setting the ansible-playbook variable
