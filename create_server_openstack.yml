@@ -71,7 +71,6 @@
     - name: Creating the {{ router_name }} router
       shell: "{{ openstack }} router create {{ router_name }} --format value -c id"
       register: router_uuid
-      ignore_errors: yes
 
     # Create a private network for the OpenStack servers to use.
     - name: Creating the {{ network_name }} network
@@ -115,17 +114,14 @@
     # Create the security group rule that allows ping (ICMP traffic).
     - name: Creating the security group rule that allows ping
       shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_uuid['stdout'] }} --format value -c id"
-      ignore_errors: yes
 
     # Create the security group rule that allows ssh (TCP port 22).
     - name: Creating the security group rule that allows ssh
       shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_uuid['stdout'] }} --format value -c id"
-      ignore_errors: yes
 
     # Create the security group rule that allows secure HTTP (TCP port 443).
     - name: Creating the security group for secure http
       shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_uuid['stdout'] }} --format value -c id"
-      ignore_errors: yes
 
     # Create the floating ip address on the public network.
     - name: Creating a floating ip on the {{ public_network_name }}
@@ -145,7 +141,7 @@
     - name: Creating the flavors
       shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['name'] }} --format value -c id"
       with_items: "{{ ec2_flavors }} + {{ standard_flavors }} + {{ openshift_flavors }}"
-      # Some OpenStack environments do not allow you to create public flavors.
+      # Some OpenStack environments do not allow users to create public flavors.
       ignore_errors: true
 
     # Get the OpenStack project name.
@@ -198,7 +194,6 @@
       until: create_result['rc'] == 0
       retries: 3
       delay: 5
-      ignore_errors: yes
 
     # Add metadata to the OpenStack about the image.
     - name: Adding metadata about the image
@@ -219,7 +214,6 @@
       # Retry 5 times until success.
       retries: 5
       delay: 3
-      ignore_errors: yes
 
     # In some cases the "floating ip" is only accessible from the openstack-server.
     - name: Creating an ssh command that will use the openstack-server as a proxy

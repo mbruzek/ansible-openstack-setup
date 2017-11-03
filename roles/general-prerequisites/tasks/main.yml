@@ -8,7 +8,8 @@
   until: install_python_result['rc'] == 0
   retries: 3
   delay: 2
-  ignore_errors: yes
+  # Ignore errors, the next task will fail if python2 is not installed.
+  ignore_errors: true
 
 # With python2 installed Ansible should be able to gather facts.
 - name: Gathering facts on the target host
