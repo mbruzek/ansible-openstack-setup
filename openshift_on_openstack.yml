@@ -211,10 +211,14 @@
 
     # Run the Ansible playbook that installs OpenShift.
     - name: Running the OpenShift install
-      shell: "{{ ansible_playbook }} -vvv openshift-ansible/playbooks/byo/config.yml 2>&1 > openshift_install_log.txt"
+      shell: "{{ ansible_playbook }} -vvv openshift-ansible/playbooks/byo/config.yml 2>&1 >> openshift_install_log.txt"
       args:
         # Use bash to get the posix style redirects.
         executable: /bin/bash
+      register: openshift_install
+      until: openshift_install['rc'] == 0
+      retries: 2
+      delay: 1
 
     # Print out the log file locations.
     - name: Printing out the log file locations
