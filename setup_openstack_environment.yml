@@ -13,3 +13,9 @@
 
 # import_playbook to provision OpenStack VMs and install OpenShift from the VM server.
 - include: openshift_on_openstack.yml
+
+# import_playbook to install and configure Graphana.
+- include: graphana.yml
+
+# import_playbook to install and configure Prometheus.
+- include: prometheus.yml
