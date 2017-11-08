@@ -1,0 +1,7 @@
+---
+- name: The tasks to install Prometheus in the OpenShift cluster
+  hosts: target-host
+  tasks:
+    - name: Printing Prometheus information
+      debug:
+        msg: "Prometheus would be installed and configured here."

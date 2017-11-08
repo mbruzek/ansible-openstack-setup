@@ -1,0 +1,7 @@
+---
+- name: The tasks to install Graphana in the OpenShift cluster
+  hosts: target-host
+  tasks:
+    - name: Printing Graphana information
+      debug:
+        msg: "Graphana would be installed and configured here."
