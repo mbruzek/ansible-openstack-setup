@@ -5,3 +5,16 @@
     - name: Printing Prometheus information
       debug:
         msg: "Prometheus would be installed and configured here."
+
+    - name: Prepare target | copy prometheus files
+      copy: src={{ item.src }} dest={{ item.dest }}
+      mode: 755
+      with_items:
+        - { src: 'redeploy-prometheus.sh', dest: '~/' }
+        - { src: 'prometheus.yml', dest: '~/' }
+        - { src: './templates/prometheus-high-performance.yaml', dest: '~/' }
+
+    # TODO:// grab prometheus-high-performance.yaml directly from github.
+
+    - name: deploy promethues
+      command: sh ~/prometheus-high-performance.yaml deploy
