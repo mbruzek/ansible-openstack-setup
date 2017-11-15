@@ -1,0 +1,25 @@
+---
+# Check for the object to create.
+- name: Checking for the object
+  shell: "{{ check }}"
+  register: check_result
+  # Ignore errors when the object does not yet exist.
+  ignore_errors: true
+
+# Set the variable if the result was successful.
+- name: "Setting fact {{ set }}"
+  set_fact:
+    "{{ set }}": "{{ check_result['stdout'] }}"
+  when: check_result['rc'] == 0
+
+# Create the object if the check failed.
+- name: Creating the object
+  shell: "{{ create }}"
+  register: create_result
+  when: check_result['rc'] != 0
+
+# Set the variable if the create was successful.
+- name: "Setting {{ set }}"
+  set_fact:
+    "{{ set }}": "{{ create_result['stdout'] }}"
+  when: check_result['rc'] != 0

@@ -21,6 +21,7 @@
     - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/atomic
       find:
         paths: "{{ image_directory }}/atomic"
+        # Example name: 2017-11-01-ocp-3.7.0-0.189.0-atomic-gold.raw
         patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw$"
         use_regex: yes
       register: atomic_images
@@ -37,6 +38,7 @@
     - name: Searching for the ocp-{{ ocp_major_minor }} files in {{ image_directory }}/rhel
       find:
         paths: "{{ image_directory }}/rhel"
+        # Example name: 2017-11-01-ocp-3.7.0-0.189.0-rhel-gold.raw
         patterns: "([0-9]+-[0-9]+-[0-9]+)-ocp-({{ ocp_major_minor }}.+)-.+raw$"
         use_regex: yes
       register: rhel_images

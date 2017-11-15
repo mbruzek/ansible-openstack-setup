@@ -68,33 +68,46 @@
         openstack: "source {{ openstack_rc }}; {{ openstack_location }}"
 
     # Create a router so the private network can connect to the Internet.
-    - name: Creating the {{ router_name }} router
-      shell: "{{ openstack }} router create {{ router_name }} --format value -c id"
-      register: router_uuid
+    - name: "Creating the {{ router_name }} router"
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} router show {{ router_name }} --format value -c id"
+        create: "{{ openstack }} router create {{ router_name }} --format value -c id"
+        set: router_uuid
 
     # Create a private network for the OpenStack servers to use.
     - name: Creating the {{ network_name }} network
-      shell: "{{ openstack }} network create {{ network_name }} --format value -c id"
-      register: ci_network_uuid
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} network show {{ network_name }} --format value -c id"
+        create: "{{ openstack }} network create {{ network_name }} --format value -c id"
+        set: ci_network_uuid
+
+    # Create a subnet with a CIDR range and link it to the private network.
+    - name: Creating the {{ subnet_name }} subnet
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} subnet show {{ subnet_name }} --format value -c id"
+        create: "{{ openstack }} subnet create --network {{ ci_network_uuid }} --subnet-range {{ subnet_range }} {{ subnet_name }} --format value -c id"
+        set: subnet_uuid
 
     # Run a command to retrieve the public DNS nameservers already set up.
     - name: Getting the dns_nameservers addresses from the {{ public_subnet_name }}
       shell: "{{ openstack }} subnet show {{ public_subnet_name }} --format value -c dns_nameservers"
       register: dns_nameservers
 
-    # Create a subnet with a CIDR range and link it to the private network.
-    - name: Creating the {{ subnet_name }} subnet
-      shell: "{{ openstack }} subnet create --network {{ ci_network_uuid['stdout'] }} --subnet-range {{ subnet_range }} {{ subnet_name }} --format value -c id"
-      register: subnet_uuid
-
     # Set each DNS server on the subnet of the private network.
     - name: Setting the DNS nameservers on {{ subnet_name }}
-      shell: "{{ openstack }} subnet set --dns-nameserver {{ item }} {{ subnet_uuid['stdout'] }}"
+      shell: "{{ openstack }} subnet set --dns-nameserver {{ item }} {{ subnet_uuid }}"
       with_items: "{{ dns_nameservers['stdout'].split(',') }}"
+      # Ignore the error if the dns is already set.
+      ignore_errors: true
 
     # The subnet is configured, add it to the router.
     - name: Adding {{ subnet_name }} subnet to the {{ router_name }} router
-      shell: "{{ openstack }} router add subnet {{ router_name }} {{ subnet_uuid['stdout'] }}"
+      shell: "{{ openstack }} router add subnet {{ router_name }} {{ subnet_uuid }}"
+      # Ignore errors if the router is already added.
+      ignore_errors: true
 
     # Run a command to retrieve the public network uuid.
     - name: Getting the public network id
@@ -104,42 +117,51 @@
     # Set the gateway on the new router to use the public network.
     - name: Assigning the public network as the gateway for the new router
       #shell: virtualenv/bin/neutron router-gateway-set {{ router_uuid['stdout'] }} {{ public_network_uuid['stdout'] }}
-      shell: "{{ openstack }} router set {{ router_uuid['stdout'] }} --external-gateway {{ public_network_uuid['stdout'] }}"
+      shell: "{{ openstack }} router set {{ router_uuid }} --external-gateway {{ public_network_uuid['stdout'] }}"
+      # Ignore the error if the network has already been set.
+      ignore_errors: true
 
     # Create a security group to hold all rules set in this script.
     - name: Creating {{ security_group_name }} security group for this server
-      shell: "{{ openstack }} security group create {{ security_group_name }} --format value -c id"
-      register: security_group_uuid
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} security group show {{ security_group_name }} --format value -c id"
+        create: "{{ openstack }} security group create {{ security_group_name }} --format value -c id"
+        set: security_group_uuid
 
     # Create the security group rule that allows ping (ICMP traffic).
     - name: Creating the security group rule that allows ping
-      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_uuid['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol icmp {{ security_group_uuid }} --format value -c id"
+      # Ignore the error if the icmp rule has already been set.
+      ignore_errors: true
 
     # Create the security group rule that allows ssh (TCP port 22).
     - name: Creating the security group rule that allows ssh
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_uuid['stdout'] }} --format value -c id"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 22 {{ security_group_uuid }} --format value -c id"
+      # Ignore the error if the ssh rule has already been set.
+      ignore_errors: true
 
     # Create the security group rule that allows secure HTTP (TCP port 443).
     - name: Creating the security group for secure http
-      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_uuid['stdout'] }} --format value -c id"
-
-    # Create the floating ip address on the public network.
-    - name: Creating a floating ip on the {{ public_network_name }}
-      shell: "{{ openstack }} floating ip create {{ public_network_name }} --format value -c floating_ip_address"
-      register: address
-
-    # Set the floating ip address as fact.
-    - name: Setting the floating ip address variable
-      set_fact:
-        floating_ip_address: "{{ address['stdout'] }}"
+      shell: "{{ openstack }} security group rule create --ingress --protocol tcp --dst-port 443 {{ security_group_uuid }} --format value -c id"
+      # Ignore the error if the http rule has already been set.
+      ignore_errors: true
 
     # Add a keypair to OpenStack that allows access to the server.
     - name: Creating {{ keypair_name }} keypair to access this server
-      shell: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }} --format value -c fingerprint"
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} keypair show ci_keypair --format value -c fingerprint"
+        create: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }} --format value -c fingerprint"
+        set: keypair_fingerprint
 
     # Create the flavors so the create server can specify a flavor.
     - name: Creating the flavors
-      shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['name'] }} --format value -c id"
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} flavor show {{ item['name'] }} --format value -c id"
+        create: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['name'] }} --format value -c id"
+        set: flavor_uuid
       with_items: "{{ ec2_flavors }} + {{ standard_flavors }} + {{ openshift_flavors }}"
       # Some OpenStack environments do not allow users to create public flavors.
       ignore_errors: true
@@ -158,7 +180,10 @@
 
     # Raise the quotas from the defaults if possible.
     - name: Setting the quotas for {{ openstack_project }}
-      shell: "{{ openstack }} quota set --{{ item }} {{ quotas[ item ] }} {{ openstack_project }}"
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} quota show --format volume -c {{ item }} {{ openstack_project }}"
+        create: "{{ openstack }} quota set --{{ item }} {{ quotas[ item ] }} {{ openstack_project }}"
       with_items:
         - cores
         - gigabytes
@@ -182,7 +207,7 @@
     - name: Deleting the existing images in OpenStack
       shell: "{{ openstack }} image delete ocp-{{ ocp_major_minor }}-{{ item }}"
       with_items: "{{ [ 'atomic', 'rhel' ] }}"
-      # Do not fail if here is no image to delete.
+      # Do not fail if there is no image to delete.
       ignore_errors: true
 
     # Upload the images to Glance.
@@ -200,10 +225,28 @@
       shell: "{{ openstack }} image set --property file_name={{ item['path']|basename }} --property directory={{ item['path']|dirname }} ocp-{{ ocp_major_minor }}-{{ ('atomic' in item['path'])|ternary('atomic','rhel') }}"
       with_items: "{{ images['files'] }}"
 
+    # Check if the server is already running.
+    - name: Checking if the {{ server_name }} has already been created
+      shell: "{{ openstack }} server show {{ server_name }} --format value -c id"
+      register: server_show
+      # Ignore errors if the server does not exist already.
+      ignore_errors: true
+
     # Create a VM instance with the flavor, image, group, keypair and network.
     - name: Creating a server instance {{ server_name }}
-      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_uuid['stdout'] }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid['stdout'] }} --format value -c id"
-      register: instance_uuid
+      shell: "{{ openstack }} server create --flavor {{ server_flavor }} --image {{ server_image }} --security-group {{ security_group_uuid }} --key-name {{ keypair_name }} {{ server_name }} --nic net-id={{ ci_network_uuid }} --format value -c id"
+      register: server_uuid
+      when: server_show['rc'] != 0
+
+    # Create the floating ip address on the public network.
+    - name: Creating a floating ip on the {{ public_network_name }}
+      shell: "{{ openstack }} floating ip create {{ public_network_name }} --format value -c floating_ip_address"
+      register: address
+
+    # Set the floating ip address as fact.
+    - name: Setting the floating ip address variable
+      set_fact:
+        floating_ip_address: "{{ address['stdout'] }}"
 
     # Add the floating ip address to the server.
     - name: Adding the floating ip address {{ floating_ip_address }} to the server instance

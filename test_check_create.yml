@@ -1,0 +1,90 @@
+---
+- name: Test the new openstack-check-create tasks
+  hosts: localhost
+  vars:
+    keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
+    network_name: "{{ lookup('env', 'network_name') | default('ci_network', true) }}"
+    openstack_location: "/home/mbruzek/ansible-venv/bin/openstack"
+    openstack_rc: "{{ ansible_user_dir ~ '/.openstack/overcloudrc' }}"
+    openstack: "source {{ openstack_rc }}; {{ openstack_location }}"
+    quotas:
+        { cores: 1444, gigabytes: 50000, instances: 550, ports: 10000, ram: 5865472, volumes: 50000 }
+    router_name: "{{ lookup('env', 'router_name') | default('ci_router', true) }}"
+    security_group_name: "{{ lookup('env', 'security_group_name') | default('ci_security_group', true) }}"
+    subnet_name: "{{ lookup('env', 'subnet_name') | default('ci_subnet', true) }}"
+  tasks:
+    - name: Pre task
+      debug:
+        msg: "This task is before the include operations."
+
+    # Create a router so the private network can connect to the Internet.
+    - name: "Creating the {{ router_name }} router"
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} router show {{ router_name }} --format value -c id"
+        create: "{{ openstack }} router create {{ router_name }} --format value -c id"
+        set: router_uuid
+
+    # Create a private network for the OpenStack servers to use.
+    - name: Creating the {{ network_name }} network
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} network show {{ network_name }} --format value -c id"
+        create: "{{ openstack }} network create {{ network_name }} --format value -c id"
+        set: ci_network_uuid
+
+    # Create a subnet with a CIDR range and link it to the private network.
+    - name: Creating the {{ subnet_name }} subnet
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} subnet show {{ subnet_name }} --format value -c id"
+        create: "{{ openstack }} subnet create --network {{ ci_network_uuid }} --subnet-range {{ subnet_range }} {{ subnet_name }} --format value -c id"
+        set: subnet_uuid
+
+    # Create a security group to hold all rules set in this script.
+    - name: Creating {{ security_group_name }} security group for this server
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} security group show {{ security_group_name }} --format value -c id"
+        create: "{{ openstack }} security group create {{ security_group_name }} --format value -c id"
+        set: security_group_uuid
+
+    # Add a keypair to OpenStack that allows access to the server.
+    - name: Creating {{ keypair_name }} keypair to access this server
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} keypair show ci_keypair --format value -c fingerprint"
+        create: "{{ openstack }} keypair create --public-key {{ public_key_path }} {{ keypair_name }} --format value -c fingerprint"
+        set: keypair_fingerprint
+
+    # Get the OpenStack project name.
+    - name: Getting the OpenStack project name
+      shell: "source {{ openstack_rc }}; echo -n $OS_PROJECT_NAME"
+      register: project_name
+      when: openstack_project == ""
+
+    # Set the OpenStack project varaible.
+    - name: Setting the OpenStack project variable
+      set_fact:
+        openstack_project: "{{ project_name.stdout }}"
+      when: project_name.stdout != ""
+
+    # Raise the quotas from the defaults if possible.
+    - name: Setting the quotas for {{ openstack_project }}
+      include: roles/openstack-check-create/tasks/main.yml
+      vars:
+        check: "{{ openstack }} quota show --format volume -c {{ item }} {{ openstack_project }}"
+        create: "{{ openstack }} quota set --{{ item }} {{ quotas[ item ] }} {{ openstack_project }}"
+      with_items:
+        - cores
+        - gigabytes
+        - instances
+        - ports
+        - ram
+        - volumes
+      # Only set quotas when the project is defined.
+      when: openstack_project != ""
+
+    - name: Post task
+      debug:
+        msg: "This task is after the include operations."
