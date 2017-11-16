@@ -2,14 +2,14 @@
 openshift_install_examples: true
 openshift_examples_modify_imagestreams: true
 
-# Disable some checks that are likely to fail.
-openshift_disable_check: disk_availability,memory_availability,docker_storage
+# Disable some checks that are likely to fail (mem>=8GiB).
+openshift_disable_check: memory_availability
 
 # Additional Docker registry that contain the images of a specific version/tag.
-openshift_docker_additional_registries: "registry-reg-aws-openshift.com:443"
-openshift_docker_insecure_registries: "registry-reg-aws-openshift.com:443"
-cli_docker_additional_registries: "registry-reg-aws-openshift.com:443"
-cli_docker_insecure_registries: "registry-reg-aws-openshift.com:443"
+openshift_docker_additional_registries: "registry.reg-aws.openshift.com:443"
+openshift_docker_insecure_registries: "registry.reg-aws.openshift.com:443"
+cli_docker_additional_registries: "registry.reg-aws.openshift.com:443"
+cli_docker_insecure_registries: "registry.reg-aws.openshift.com:443"
 
 # Configure usage of openshift_clock role.
 openshift_clock_enabled: true
