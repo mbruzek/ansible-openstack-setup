@@ -21,7 +21,7 @@
       - { name: container_storage, vcpu: 16, memory: 65536, disk: 128 }
       - { name: load_balancer, vcpu: 4, memory: 16384, disk: 128 }
       - { name: infra_elastic, vcpu: 16, memory: 65536, disk: 128 }
-      - { name: master_etcd, vcpu: 64, memory: 245760, disk: 512 }
+      - { name: master_etcd, vcpu: 64, memory: 245760, disk: 512, property: '--property "pci_passthrough:alias"="nvme:1"' }
       - { name: node_small, vcpu: 1, memory: 2048, disk: 80 }
       - { name: node_average, vcpu: 4, memory: 16384, disk: 80 }
     openstack_location: "{{ lookup('env', 'openstack_client_path' ) | default('/usr/bin/openstack', true) }}"
@@ -139,7 +139,7 @@
 
     # Create the flavors so the create server can specify a flavor.
     - name: Creating the flavors
-      shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['name'] }} --format value -c id"
+      shell: "{{ openstack }} flavor create --ram {{ item['memory'] }} --disk {{ item['disk'] }} --vcpus {{ item['vcpu'] }} {{ item['property']|default('') }} {{ item['name'] }} --format value -c id"
       with_items: "{{ ec2_flavors }} + {{ standard_flavors }} + {{ openshift_flavors }}"
       # Some OpenStack environments do not allow users to create public flavors.
       ignore_errors: true
