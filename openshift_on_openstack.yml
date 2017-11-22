@@ -23,10 +23,11 @@
     default_image_name: "{{ lookup('env', 'default_image_name') | default('ocp-3.7-rhel', true) }}"
     env_id: "{{ lookup('env', 'env_id') | default('scale-ci', true) }}"
     keypair_name: "{{ lookup('env', 'keypair_name') | default('ci_keypair', true) }}"
+    ocp_major_minor: "{{ lookup('env', 'ocp_major_minor') | default('3.7', true) }}"
     # The openshift-ansible repository to use if the code is not already on the host.
     openshift_ansible_repo: "{{ lookup('env', 'openshift_ansible_repo') | default('https://github.com/openshift/openshift-ansible', true) }}"
     # The version can be a branch, tag, or hash for testing pull requests.
-    openshift_ansible_version: "{{ lookup('env', 'openshift_ansible_version') | default('HEAD', true) }}"
+    openshift_ansible_version: "{{ lookup('env', 'openshift_ansible_version') | default('release-' ~ ocp_major_minor, true) }}"
     # The openshift-ansible-contrib repository to use (required).
     openshift_ansible_contrib_repo: "{{ lookup('env', 'openshift_ansible_contrib_repo') | default('https://github.com/openshift/openshift-ansible-contrib', true) }}"
     # This version can be a branch, tag, or hash for testing pull requests.
