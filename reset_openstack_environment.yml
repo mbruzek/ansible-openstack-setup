@@ -7,13 +7,13 @@
     openstack_rc: "{{ lookup('env', 'openstack_rc_path') | default(ansible_user_dir ~ '/overcloudrc', true) }}"
 
   tasks:
-    # Check for the existance of the OpenStack client.
+    # Check for the existence of the OpenStack client.
     - name: Checking for the OpenStack client
       stat:
         path: "{{ openstack_location }}"
       register: openstack_path
 
-    # When the virtual enviornment does not exist try openstack from PATH.
+    # When the virtual environment does not exist try openstack from PATH.
     - name: Reverting to the OpenStack client from PATH when the virtualenv does not exist
       set_fact:
         openstack_location: openstack
@@ -30,7 +30,7 @@
       register: stacks
 
     # The OpenShift installer uses a stack, try deleting that first.
-    - name: Deleting the all the stacks
+    - name: Deleting all the heat stacks
       shell: "{{ openstack }} stack delete --yes --wait {{ item }}"
       with_items: "{{ stacks.stdout_lines }}"
       ignore_errors: true

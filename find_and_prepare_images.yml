@@ -160,7 +160,7 @@
       get_url:
         checksum: "sha256:{{ item[1]['stat']['checksum'] }}"
         dest: "{{ remote_image_directory }}/{{ (item[0]|splitext)[0] }}.qcow2"
-        # http://image-server/image_buiilder/qcow_images/{atomic,rhel}/*.qcow2
+        # http://image-server/image_builder/qcow_images/{atomic,rhel}/*.qcow2
         url: "http://{{ groups['image-server'][0] }}/{{ (item[0]|splitext)[0] }}.qcow2"
       with_together:
         - "{{ files }}"

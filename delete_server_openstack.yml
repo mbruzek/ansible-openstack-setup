@@ -21,13 +21,13 @@
       default: no
       private: no
   tasks:
-    # Check for the existance of the OpenStack client.
+    # Check for the existence of the OpenStack client.
     - name: Checking for the OpenStack client
       stat:
         path: "{{ openstack_location }}"
       register: openstack_path
 
-    # When the virtual enviornment does not exist try openstack from PATH.
+    # When the virtual environment does not exist try openstack from PATH.
     - name: Reverting to the OpenStack client from PATH when the virtualenv does not exist
       set_fact:
         openstack_location: openstack
@@ -70,7 +70,7 @@
       when: delete_flavors | bool == true
 
     # Get the floating ips.
-    - name: Getting all the floaing ip addresses
+    - name: Getting all the floating ip addresses
       shell: "{{ openstack }} floating ip list --format value -c ID"
       register: floating_ips
 

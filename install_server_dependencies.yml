@@ -5,5 +5,5 @@
   gather_facts: false
 
   roles:
-    # Install the general prerequisistes for OpenStack and Ansible.
+    # Install the general prerequisites for OpenStack and Ansible.
     - general-prerequisites
